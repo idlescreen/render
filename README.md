@@ -1,29 +1,63 @@
-# render
+# IdleScreen render
 
-Offline video rendering for IdleScreen: run saver plugin math and encode frames (AV1 via ffmpeg when available).
+**Offline export capability** for IdleScreen (library + `render` CLI).
 
-Website: [https://idlescreen.github.io](https://idlescreen.github.io)
+Studio (UI) lives in [`studio/`](studio/) in **this same repo** and drives render via job files.
 
-Used by **idle-studio** for queued jobs; can also be invoked directly.
-
-### CLI examples
-
-```bash
-render --effect beams --duration 10s -o /tmp/beams.mkv
-render --effect ripple --duration 10s --width 1280 --height 720 -o /tmp/ripple.mkv
-render --effect storm --duration 8h --segment 1h --width 3840 --height 2160 \
-  --preset 10 --resume -o /tmp/night.mkv
+```text
+studio (UI)  →  render (capability)  →  video
+                     │
+                     includes draw, upscale, encode
 ```
 
-Notes:
+### Layout
 
-- Size is `--width` / `--height` (no `--resolution` preset).
-- `--segment` enables long segmented encodes (e.g. `1h`); parts are `out.part000.mkv`….
-- `--resume` skips encode for existing non-empty parts (still advances the sim).
-- `--crf` (default 35) and `--preset` control quality/speed (SVT numeric; NVENC `p1`–`p7`).
-- **GPU-aware by default:**
-  - Cell raster may use **wgpu** (via idle-runner).
-  - **Hardware AV1** preferred when it actually works (`av1_nvenc` / `qsv` / `amf` are
-    probed; broken drivers fall back to `libsvtav1` / aom / rav1e).
-  - `--no-gpu-upscale` asks idle-runner for CPU upscale; `--no-hw-encode` skips HW auto-detect.
-  - `--encoder NAME` forces a codec (no auto-fallback).
+```text
+render/                 # this repo
+  engine/               # capability (library + render binary)
+  studio/               # UI (idle-studio binary)
+```
+
+### Build
+
+```bash
+# needs sibling idlescreen/idle checkout (path ../../idle from engine/)
+cargo build --release -p render -p idle-studio
+```
+
+### CLI
+
+```bash
+render -e ripple --duration 10s -o /tmp/ripple.mkv
+render -e ripple --duration 10s --width 3840 --height 2160 --fps 30 -o /tmp/4k.mkv
+render --job-file /path/to/job.json
+```
+
+### Job file (Studio contract)
+
+```json
+{
+  "effect": "ripple",
+  "duration": "10s",
+  "output": "/tmp/ripple.mkv",
+  "width": 1280,
+  "height": 720,
+  "fps": 30,
+  "prefer_hw": true,
+  "gpu_upscale": true
+}
+```
+
+```bash
+render --job-file job.json
+```
+
+### Notes
+
+- **Resolution:** `--width` / `--height`
+- **Framerate:** `--fps`
+- **Long jobs:** `--segment 1h` + `--resume`
+- **HW encode:** preferred when probe succeeds; `--no-hw-encode` for software only
+- **Upscale** is an internal frame step (not a separate product)
+
+Website: [https://idlescreen.github.io](https://idlescreen.github.io)

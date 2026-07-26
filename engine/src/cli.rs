@@ -1,6 +1,7 @@
 use crate::duration::parse_duration_secs;
 use crate::encode::EncodeBackend;
 use crate::error::RenderError;
+use crate::job_spec::JobSpec;
 use crate::models::RenderJob;
 use clap::Parser;
 use std::path::PathBuf;
@@ -8,18 +9,22 @@ use std::path::PathBuf;
 #[derive(Debug, Parser)]
 #[command(
     name = "render",
-    about = "Offline IdleScreen effect renderer (saver math → AV1)"
+    about = "IdleScreen offline export capability (saver math → AV1)"
 )]
 pub struct Args {
-    /// Effect name (allowlisted saver basename, e.g. beams)
-    #[arg(long, short = 'e')]
-    pub effect: String,
+    /// JSON job file (Studio / automation). When set, flag fields below are ignored.
+    #[arg(long)]
+    pub job_file: Option<PathBuf>,
+
+    /// Effect name (allowlisted saver basename, e.g. ripple)
+    #[arg(long, short = 'e', required_unless_present = "job_file")]
+    pub effect: Option<String>,
 
     /// Explicit path to plugin .so (skips discovery)
     #[arg(long)]
     pub plugin_path: Option<PathBuf>,
 
-    /// RNG seed exported to plugins via RENDER_SEED / IDLE_RENDER_SEED / TRANCE_SEED
+    /// RNG seed
     #[arg(long, default_value_t = 0x00C0_FFEEu64)]
     pub seed: u64,
 
@@ -35,13 +40,13 @@ pub struct Args {
     #[arg(long)]
     pub segment: Option<String>,
 
-    /// Optional audio bed (muxed after video; looped/cut to fit)
+    /// Optional audio bed (muxed after video)
     #[arg(long)]
     pub audio: Option<PathBuf>,
 
     /// Output path (.mkv recommended)
-    #[arg(long, short = 'o')]
-    pub output: PathBuf,
+    #[arg(long, short = 'o', required_unless_present = "job_file")]
+    pub output: Option<PathBuf>,
 
     /// Pixel width
     #[arg(long, default_value_t = 1280)]
@@ -67,49 +72,56 @@ pub struct Args {
     #[arg(long)]
     pub raw: bool,
 
-    /// Resume: skip encode for existing non-empty segment parts (still advances sim)
+    /// Resume: skip encode for existing non-empty segment parts
     #[arg(long)]
     pub resume: bool,
 
-    /// AV1 CRF (0–63, lower = better/larger). Default 35.
+    /// AV1 quality 0–63 (CRF / CQ). Default 35.
     #[arg(long, default_value_t = 35)]
     pub crf: u8,
 
-    /// Encoder preset (e.g. SVT-AV1: higher is faster, try 10–12 for long jobs)
+    /// Encoder preset (SVT numeric or NVENC p1–p7)
     #[arg(long)]
     pub preset: Option<String>,
 
-    /// Force ffmpeg video encoder name (default: auto — prefer hardware AV1)
+    /// Force ffmpeg video encoder name
     #[arg(long)]
     pub encoder: Option<String>,
 
-    /// Force software AV1 only (skip nvenc/qsv/amf auto-detect)
+    /// Force software AV1 only
     #[arg(long)]
     pub no_hw_encode: bool,
 
-    /// Force CPU upscale (disable GPU cell upscale; default is GPU when available)
+    /// Force CPU upscale
     #[arg(long)]
     pub no_gpu_upscale: bool,
 }
 
 impl Args {
     pub fn into_job(self) -> Result<(RenderJob, EncodeBackend), RenderError> {
+        if let Some(path) = self.job_file {
+            return JobSpec::load_path(&path)?.into_job();
+        }
+        let effect = self
+            .effect
+            .ok_or_else(|| RenderError::Job("--effect required without --job-file".into()))?;
+        let output = self
+            .output
+            .ok_or_else(|| RenderError::Job("--output required without --job-file".into()))?;
         let duration = parse_duration_secs(&self.duration)?;
         let segment = match self.segment {
             Some(s) => Some(parse_duration_secs(&s)?),
             None => None,
         };
-        let prefer_hw = !self.no_hw_encode;
-        let gpu_upscale = !self.no_gpu_upscale;
         let job = RenderJob {
-            effect: self.effect,
+            effect,
             plugin_path: self.plugin_path,
             seed: self.seed,
             fps: self.fps,
             duration,
             width: self.width,
             height: self.height,
-            output: self.output,
+            output,
             cols: self.cols,
             rows: self.rows,
             dry_run: self.dry_run,
@@ -119,8 +131,8 @@ impl Args {
             crf: self.crf,
             preset: self.preset,
             encoder: self.encoder,
-            prefer_hw,
-            gpu_upscale,
+            prefer_hw: !self.no_hw_encode,
+            gpu_upscale: !self.no_gpu_upscale,
         };
         job.validate()?;
         let backend = if self.raw || job.dry_run {
