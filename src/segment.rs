@@ -64,6 +64,14 @@ pub fn plan_segments(job: &RenderJob) -> Result<Vec<SegmentPlan>, RenderError> {
     Ok(plans)
 }
 
+/// True when a segment file already exists and has non-zero size (usable for --resume).
+pub fn segment_file_ready(path: &Path) -> bool {
+    match fs::metadata(path) {
+        Ok(m) => m.is_file() && m.len() > 0,
+        Err(_) => false,
+    }
+}
+
 /// Concat demuxer: write list file and run ffmpeg -c copy.
 pub fn concat_segments(parts: &[PathBuf], output: &Path) -> Result<(), RenderError> {
     if parts.is_empty() {
@@ -134,7 +142,18 @@ mod tests {
             dry_run: true,
             segment: seg.map(Duration::from_secs),
             audio: None,
+            resume: false,
+            crf: 35,
+            preset: None,
+            encoder: None,
         }
+    }
+
+    #[test]
+    fn missing_part_not_ready() {
+        assert!(!segment_file_ready(Path::new(
+            "/tmp/definitely-missing-idle-render-part.mkv"
+        )));
     }
 
     #[test]

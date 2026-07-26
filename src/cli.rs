@@ -66,6 +66,22 @@ pub struct Args {
     /// Write raw BGRA dump instead of AV1 (debug/tests)
     #[arg(long)]
     pub raw: bool,
+
+    /// Resume: skip encode for existing non-empty segment parts (still advances sim)
+    #[arg(long)]
+    pub resume: bool,
+
+    /// AV1 CRF (0–63, lower = better/larger). Default 35.
+    #[arg(long, default_value_t = 35)]
+    pub crf: u8,
+
+    /// Encoder preset (e.g. SVT-AV1: higher is faster, try 10–12 for long jobs)
+    #[arg(long)]
+    pub preset: Option<String>,
+
+    /// Force ffmpeg video encoder name (default: first available AV1)
+    #[arg(long)]
+    pub encoder: Option<String>,
 }
 
 impl Args {
@@ -89,6 +105,10 @@ impl Args {
             dry_run: self.dry_run,
             segment,
             audio: self.audio,
+            resume: self.resume,
+            crf: self.crf,
+            preset: self.preset,
+            encoder: self.encoder,
         };
         job.validate()?;
         let backend = if self.raw || self.dry_run {

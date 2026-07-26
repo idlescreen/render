@@ -24,12 +24,14 @@ fn main() -> ExitCode {
 
     if job.dry_run {
         eprintln!(
-            "dry-run: effect={} seed={} fps={} frames={} segments={} {}x{} -> {}",
+            "dry-run: effect={} seed={} fps={} frames={} segments={} crf={} resume={} {}x{} -> {}",
             job.effect,
             job.seed,
             job.fps,
             job.frame_count(),
             job.segment_count(),
+            job.crf,
+            job.resume,
             job.width,
             job.height,
             job.output.display()
@@ -39,9 +41,10 @@ fn main() -> ExitCode {
     match run_pipeline(&job, backend) {
         Ok(r) => {
             eprintln!(
-                "render: wrote {} frame(s) in {} segment(s) to {}{}",
+                "render: wrote {} frame(s) in {} segment(s) (resumed {}) to {}{}",
                 r.frames,
                 r.segments,
+                r.resumed_segments,
                 r.output.display(),
                 if r.dry_run { " (dry-run)" } else { "" }
             );

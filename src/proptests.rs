@@ -52,6 +52,10 @@ mod segment_props {
             dry_run: true,
             segment: Some(Duration::from_secs(seg.max(1))),
             audio: None,
+            resume: false,
+            crf: 35,
+            preset: None,
+            encoder: None,
         }
     }
 

@@ -1,11 +1,12 @@
 use crate::audio::mux_audio_bed;
-use crate::encode::{encode_raw_bgra_to_file, EncodeBackend};
+use crate::encode::{encode_raw_bgra_to_file, EncodeBackend, EncodeSettings};
 use crate::error::RenderError;
 use crate::models::RenderJob;
-use crate::segment::{concat_segments, plan_segments};
+use crate::paths::ensure_parent_dir;
+use crate::segment::{concat_segments, plan_segments, segment_file_ready};
 use idle_runner::plugin_session::PluginSession;
 use std::path::PathBuf;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 /// Outcome of a finished (or dry-run) pipeline.
 #[derive(Debug, Clone)]
@@ -14,17 +15,21 @@ pub struct PipelineResult {
     pub output: PathBuf,
     pub dry_run: bool,
     pub segments: u32,
+    /// Segments skipped via --resume (existing part files).
+    pub resumed_segments: u32,
 }
 
 /// Export seed env vars so plugins using [`idle_api::LcgRng::from_env_or_random`] match.
 pub fn export_seed_env(seed: u64) {
     // SAFETY: single-threaded CLI before plugin load; values are numeric strings.
     unsafe {
-        // Dual names: historical TRANCE_SEED / IDLE_RENDER_SEED + product RENDER_SEED.
         std::env::set_var("RENDER_SEED", seed.to_string());
         std::env::set_var("IDLE_RENDER_SEED", seed.to_string());
         std::env::set_var("TRANCE_SEED", seed.to_string());
+        std::env::set_var("IDLE_DISABLE_SANDBOX", "1");
         std::env::set_var("TRANCE_DISABLE_SANDBOX", "1");
+        std::env::set_var("IDLE_EXPORT_MODE", "1");
+        std::env::set_var("TRANCE_EXPORT_MODE", "1");
     }
 }
 
@@ -42,6 +47,28 @@ fn resolve_plugin(job: &RenderJob) -> Result<PluginSession, RenderError> {
     .map_err(|e| RenderError::Plugin(e.to_string()))
 }
 
+fn encode_settings(job: &RenderJob) -> EncodeSettings {
+    EncodeSettings {
+        crf: job.crf,
+        preset: job.preset.clone(),
+        encoder: job.encoder.clone(),
+    }
+}
+
+fn frames_for_duration(duration: Duration, fps: u32) -> u64 {
+    let secs = duration.as_secs_f64();
+    let n = (secs * f64::from(fps)).floor() as u64;
+    n.max(1)
+}
+
+/// Advance simulation without raster/encode (used when --resume skips a part).
+fn fast_forward(session: &mut PluginSession, frames: u64, fps: u32) {
+    let dt = Duration::from_secs_f64(1.0 / f64::from(fps));
+    for _ in 0..frames {
+        session.tick(dt);
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn encode_one(
     session: &mut PluginSession,
@@ -54,23 +81,36 @@ fn encode_one(
     frame_offset: u64,
     output: &std::path::Path,
     backend: EncodeBackend,
+    settings: &EncodeSettings,
 ) -> Result<u64, RenderError> {
+    ensure_parent_dir(output)?;
     let dt = Duration::from_secs_f64(1.0 / f64::from(fps));
+    let started = Instant::now();
     let mut index = 0u64;
     let iter = std::iter::from_fn(|| {
         if index >= frames_total {
             return None;
         }
         session.tick(dt);
+        // Arc drops after write; session may mutate pixel_buf on next frame.
         let pixels = session.render(cols, rows, width, height);
         index += 1;
         let global = frame_offset + index;
         if global.is_multiple_of(30) || index == frames_total {
-            tracing::info!(frame = global, "render progress");
+            let elapsed = started.elapsed().as_secs_f64().max(1e-6);
+            let fps_eff = global as f64 / elapsed;
+            let remain = frames_total.saturating_sub(index);
+            let eta = remain as f64 / fps_eff.max(1e-6);
+            tracing::info!(
+                frame = global,
+                fps = format!("{fps_eff:.1}"),
+                eta_s = format!("{eta:.0}"),
+                "render progress"
+            );
         }
         Some(Ok(pixels))
     });
-    encode_raw_bgra_to_file(backend, width, height, fps, output, iter)
+    encode_raw_bgra_to_file(backend, settings, width, height, fps, output, iter)
 }
 
 /// Run the offline simulation and encode loop (optional segments + audio).
@@ -89,9 +129,12 @@ pub fn run_pipeline(
             output: job.output.clone(),
             dry_run: true,
             segments: plans.len() as u32,
+            resumed_segments: 0,
         });
     }
 
+    ensure_parent_dir(&job.output)?;
+    let settings = encode_settings(job);
     let mut session = resolve_plugin(job)?;
     let (cols, rows) = match (job.cols, job.rows) {
         (Some(c), Some(r)) => (c, r),
@@ -105,13 +148,23 @@ pub fn run_pipeline(
 
     let mut written = 0u64;
     let mut frame_offset = 0u64;
+    let mut resumed_segments = 0u32;
     let mut part_paths = Vec::new();
     for plan in &plans {
-        let part_frames = {
-            let secs = plan.duration.as_secs_f64();
-            let n = (secs * f64::from(job.fps)).floor() as u64;
-            n.max(1)
-        };
+        let part_frames = frames_for_duration(plan.duration, job.fps);
+        if job.resume && segment_file_ready(&plan.path) {
+            tracing::info!(
+                segment = plan.index,
+                path = %plan.path.display(),
+                "resume: skip encode, fast-forward sim"
+            );
+            fast_forward(&mut session, part_frames, job.fps);
+            written += part_frames;
+            frame_offset += part_frames;
+            part_paths.push(plan.path.clone());
+            resumed_segments += 1;
+            continue;
+        }
         let n = encode_one(
             &mut session,
             cols,
@@ -123,17 +176,22 @@ pub fn run_pipeline(
             frame_offset,
             &plan.path,
             backend,
+            &settings,
         )?;
         written += n;
         frame_offset += part_frames;
         part_paths.push(plan.path.clone());
-        tracing::info!(segment = plan.index, frames = n, path = %plan.path.display(), "segment done");
+        tracing::info!(
+            segment = plan.index,
+            frames = n,
+            path = %plan.path.display(),
+            "segment done"
+        );
     }
 
     if part_paths.len() > 1 {
         concat_segments(&part_paths, &job.output)?;
     } else if part_paths.len() == 1 && part_paths[0] != job.output {
-        // should not happen for unsegmented
         concat_segments(&part_paths, &job.output)?;
     }
 
@@ -146,6 +204,7 @@ pub fn run_pipeline(
         output: job.output.clone(),
         dry_run: false,
         segments: plans.len() as u32,
+        resumed_segments,
     })
 }
 
@@ -170,10 +229,15 @@ mod tests {
             dry_run: true,
             segment: Some(Duration::from_secs(60)),
             audio: None,
+            resume: false,
+            crf: 35,
+            preset: None,
+            encoder: None,
         };
         let r = run_pipeline(&job, EncodeBackend::RawDump).expect("dry");
         assert_eq!(r.frames, 3600);
         assert_eq!(r.segments, 2);
         assert!(r.dry_run);
+        assert_eq!(r.resumed_segments, 0);
     }
 }

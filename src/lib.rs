@@ -11,7 +11,7 @@ pub mod pipeline;
 pub mod segment;
 
 pub use duration::parse_duration_secs;
-pub use encode::{encode_raw_bgra_to_file, EncodeBackend};
+pub use encode::{encode_raw_bgra_to_file, EncodeBackend, EncodeSettings};
 pub use error::RenderError;
 pub use models::RenderJob;
 pub use pipeline::{run_pipeline, PipelineResult};

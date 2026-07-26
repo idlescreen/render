@@ -33,6 +33,14 @@ pub struct RenderJob {
     pub segment: Option<Duration>,
     /// Optional audio bed muxed after video (loop/shorten to video length).
     pub audio: Option<PathBuf>,
+    /// Skip encoding segments whose part files already exist; still advances sim.
+    pub resume: bool,
+    /// AV1 CRF (lower = better/larger). Default 35.
+    pub crf: u8,
+    /// Optional encoder preset string (e.g. SVT-AV1 speed).
+    pub preset: Option<String>,
+    /// Optional forced ffmpeg encoder name.
+    pub encoder: Option<String>,
 }
 
 impl RenderJob {
@@ -79,6 +87,9 @@ impl RenderJob {
         if self.output.as_os_str().is_empty() {
             return Err(RenderError::Job("output path required".into()));
         }
+        if self.crf > 63 {
+            return Err(RenderError::Job("crf must be 0..=63".into()));
+        }
         deny_parent_dirs(&self.output, "output")?;
         if let Some(p) = &self.plugin_path {
             deny_parent_dirs(p, "plugin_path")?;
@@ -89,14 +100,6 @@ impl RenderJob {
         if let Some(seg) = self.segment {
             if seg.is_zero() {
                 return Err(RenderError::Job("segment duration must be > 0".into()));
-            }
-            if seg >= self.duration {
-                // single segment is fine — treat as unsegmented
-            }
-        }
-        if let Some(a) = &self.audio {
-            if !a.as_os_str().is_empty() && a.extension().is_none() {
-                // allow extensionless; only reject empty
             }
         }
         Ok(())
@@ -122,6 +125,10 @@ mod tests {
             dry_run: true,
             segment: None,
             audio: None,
+            resume: false,
+            crf: 35,
+            preset: None,
+            encoder: None,
         }
     }
 
@@ -149,6 +156,13 @@ mod tests {
     fn rejects_zero_size() {
         let mut j = sample();
         j.width = 0;
+        assert!(j.validate().is_err());
+    }
+
+    #[test]
+    fn rejects_bad_crf() {
+        let mut j = sample();
+        j.crf = 99;
         assert!(j.validate().is_err());
     }
 }
