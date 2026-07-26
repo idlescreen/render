@@ -20,5 +20,10 @@ Notes:
 - Size is `--width` / `--height` (no `--resolution` preset).
 - `--segment` enables long segmented encodes (e.g. `1h`); parts are `out.part000.mkv`….
 - `--resume` skips encode for existing non-empty parts (still advances the sim).
-- `--crf` (default 35) and `--preset` (e.g. SVT-AV1 `10`–`12` for speed) control quality/speed.
-- Prefers AV1 encoders exposed by ffmpeg (`libsvtav1`, `libaom-av1`, `librav1e` when present).
+- `--crf` (default 35) and `--preset` control quality/speed (SVT numeric; NVENC `p1`–`p7`).
+- **GPU-aware by default:**
+  - Cell raster may use **wgpu** (via idle-runner).
+  - **Hardware AV1** preferred when it actually works (`av1_nvenc` / `qsv` / `amf` are
+    probed; broken drivers fall back to `libsvtav1` / aom / rav1e).
+  - `--no-gpu-upscale` asks idle-runner for CPU upscale; `--no-hw-encode` skips HW auto-detect.
+  - `--encoder NAME` forces a codec (no auto-fallback).

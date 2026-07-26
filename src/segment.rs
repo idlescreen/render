@@ -146,6 +146,8 @@ mod tests {
             crf: 35,
             preset: None,
             encoder: None,
+            prefer_hw: true,
+            gpu_upscale: true,
         }
     }
 

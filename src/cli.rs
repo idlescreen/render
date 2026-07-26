@@ -79,9 +79,17 @@ pub struct Args {
     #[arg(long)]
     pub preset: Option<String>,
 
-    /// Force ffmpeg video encoder name (default: first available AV1)
+    /// Force ffmpeg video encoder name (default: auto — prefer hardware AV1)
     #[arg(long)]
     pub encoder: Option<String>,
+
+    /// Force software AV1 only (skip nvenc/qsv/amf auto-detect)
+    #[arg(long)]
+    pub no_hw_encode: bool,
+
+    /// Force CPU upscale (disable GPU cell upscale; default is GPU when available)
+    #[arg(long)]
+    pub no_gpu_upscale: bool,
 }
 
 impl Args {
@@ -91,6 +99,8 @@ impl Args {
             Some(s) => Some(parse_duration_secs(&s)?),
             None => None,
         };
+        let prefer_hw = !self.no_hw_encode;
+        let gpu_upscale = !self.no_gpu_upscale;
         let job = RenderJob {
             effect: self.effect,
             plugin_path: self.plugin_path,
@@ -109,9 +119,11 @@ impl Args {
             crf: self.crf,
             preset: self.preset,
             encoder: self.encoder,
+            prefer_hw,
+            gpu_upscale,
         };
         job.validate()?;
-        let backend = if self.raw || self.dry_run {
+        let backend = if self.raw || job.dry_run {
             EncodeBackend::RawDump
         } else {
             EncodeBackend::FfmpegAv1

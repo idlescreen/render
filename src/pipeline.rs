@@ -34,15 +34,18 @@ pub fn export_seed_env(seed: u64) {
 }
 
 fn resolve_plugin(job: &RenderJob) -> Result<PluginSession, RenderError> {
+    // Some(true/false) forces GPU upscale on/off in idle-runner.
+    let gpu = Some(job.gpu_upscale);
+    let scale = Some(1.0_f32);
     if let Some(path) = &job.plugin_path {
-        return PluginSession::load_path_with_options(path, Some(false), Some(1.0))
+        return PluginSession::load_path_with_options(path, gpu, scale)
             .map_err(|e| RenderError::Plugin(e.to_string()));
     }
     PluginSession::load_with_options(
         &job.effect,
         &idle_runner::launcher::LaunchMode::Preview,
-        Some(false),
-        Some(1.0),
+        gpu,
+        scale,
     )
     .map_err(|e| RenderError::Plugin(e.to_string()))
 }
@@ -52,6 +55,7 @@ fn encode_settings(job: &RenderJob) -> EncodeSettings {
         crf: job.crf,
         preset: job.preset.clone(),
         encoder: job.encoder.clone(),
+        prefer_hw: job.prefer_hw,
     }
 }
 
@@ -233,6 +237,8 @@ mod tests {
             crf: 35,
             preset: None,
             encoder: None,
+            prefer_hw: true,
+            gpu_upscale: true,
         };
         let r = run_pipeline(&job, EncodeBackend::RawDump).expect("dry");
         assert_eq!(r.frames, 3600);

@@ -24,7 +24,7 @@ fn main() -> ExitCode {
 
     if job.dry_run {
         eprintln!(
-            "dry-run: effect={} seed={} fps={} frames={} segments={} crf={} resume={} {}x{} -> {}",
+            "dry-run: effect={} seed={} fps={} frames={} segments={} crf={} resume={} hw={} gpu_upscale={} {}x{} -> {}",
             job.effect,
             job.seed,
             job.fps,
@@ -32,6 +32,8 @@ fn main() -> ExitCode {
             job.segment_count(),
             job.crf,
             job.resume,
+            job.prefer_hw,
+            job.gpu_upscale,
             job.width,
             job.height,
             job.output.display()

@@ -41,6 +41,10 @@ pub struct RenderJob {
     pub preset: Option<String>,
     /// Optional forced ffmpeg encoder name.
     pub encoder: Option<String>,
+    /// Prefer hardware AV1 (nvenc/qsv/amf) when auto-detecting encoder.
+    pub prefer_hw: bool,
+    /// GPU upscale in idle-runner (wgpu path when available).
+    pub gpu_upscale: bool,
 }
 
 impl RenderJob {
@@ -129,6 +133,8 @@ mod tests {
             crf: 35,
             preset: None,
             encoder: None,
+            prefer_hw: true,
+            gpu_upscale: true,
         }
     }
 
