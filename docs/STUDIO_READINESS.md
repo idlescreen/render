@@ -37,16 +37,17 @@ daemon installs.
 **Render ≠ host GPU flag:** offline `gpu_upscale` is a separate export path; host
 `gpu_enabled` remains deprecated.
 
-## Studio (next phase)
+## Studio (TUI-first)
 
 | Check | How |
 |-------|-----|
 | Build | `cargo build --release -p idle-studio` |
-| Job queue | `idle-studio enqueue …` / `run` / `tui` |
-| Finds render | `render` on PATH or `target/release/render` |
+| Open TUI | `idle-studio` (no args) or `idle-studio tui` |
+| New job | In TUI: `n` → set params → `s` |
+| Run | In TUI: `Enter` / `r` / `a` (needs `render` on PATH) |
+| Scripting | optional `enqueue` / `list` / `run` subcommands |
 
-Do not expand Studio features until host + render rows above are green on a clean
-machine.
+Host + render rows above should be green before relying on Studio day-to-day.
 
 ## Housekeeping backlog (host / render only)
 

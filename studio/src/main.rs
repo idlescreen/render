@@ -1,4 +1,4 @@
-//! idle-studio — UI that drives the **render** capability (same repo).
+//! idle-studio — **TUI-first** UI that drives the render capability.
 
 use clap::{Parser, Subcommand};
 use idle_render::JobSpec;
@@ -12,22 +12,25 @@ use std::process::ExitCode;
 #[derive(Debug, Parser)]
 #[command(
     name = "idle-studio",
-    about = "IdleScreen Studio — UI for the render capability"
+    about = "IdleScreen Studio — TUI Director for the render capability",
+    long_about = "Primary UX: run with no subcommand to open the Director TUI.\n\
+                  CLI subcommands (enqueue/list/run) remain for scripts and automation."
 )]
 struct Args {
     /// Queue file (JSON)
     #[arg(long, global = true)]
     queue: Option<PathBuf>,
 
+    /// Optional CLI mode; omit to open the TUI
     #[command(subcommand)]
-    cmd: Cmd,
+    cmd: Option<Cmd>,
 }
 
 #[derive(Debug, Subcommand)]
 enum Cmd {
-    /// Interactive Director TUI
+    /// Interactive Director TUI (same as default with no subcommand)
     Tui,
-    /// Add a job to the queue (stored as render JobSpec)
+    /// Add a job to the queue (scripting; prefer TUI `n` for interactive use)
     Enqueue {
         #[arg(long, short = 'e')]
         effect: String,
@@ -62,7 +65,7 @@ enum Cmd {
         #[arg(long)]
         no_gpu_upscale: bool,
     },
-    /// List queue entries
+    /// List queue entries (scripting)
     List,
     /// Run the next pending job (or all with --all)
     Run {
@@ -75,7 +78,8 @@ fn main() -> ExitCode {
     let args = Args::parse();
     let path = args.queue.unwrap_or_else(default_queue_path);
 
-    if matches!(args.cmd, Cmd::Tui) {
+    // TUI is the product: no subcommand, or explicit `tui`.
+    if args.cmd.is_none() || matches!(args.cmd, Some(Cmd::Tui)) {
         return match run_tui(&path) {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
@@ -93,7 +97,7 @@ fn main() -> ExitCode {
         }
     };
 
-    match args.cmd {
+    match args.cmd.expect("subcommand present") {
         Cmd::Tui => ExitCode::SUCCESS,
         Cmd::Enqueue {
             effect,
