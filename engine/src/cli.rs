@@ -44,8 +44,12 @@ pub struct Args {
     #[arg(long)]
     pub audio: Option<PathBuf>,
 
-    /// Output path (.mkv recommended)
-    #[arg(long, short = 'o', required_unless_present = "job_file")]
+    /// Output path (.mkv recommended). Optional with `--dry-run` (plan only).
+    #[arg(
+        long,
+        short = 'o',
+        required_unless_present_any = ["job_file", "dry_run"]
+    )]
     pub output: Option<PathBuf>,
 
     /// Pixel width
@@ -105,9 +109,15 @@ impl Args {
         let effect = self
             .effect
             .ok_or_else(|| RenderError::Job("--effect required without --job-file".into()))?;
-        let output = self
-            .output
-            .ok_or_else(|| RenderError::Job("--output required without --job-file".into()))?;
+        let output = match self.output {
+            Some(p) => p,
+            None if self.dry_run => PathBuf::from("dry-run.mkv"),
+            None => {
+                return Err(RenderError::Job(
+                    "--output required without --job-file (unless --dry-run)".into(),
+                ));
+            }
+        };
         let duration = parse_duration_secs(&self.duration)?;
         let segment = match self.segment {
             Some(s) => Some(parse_duration_secs(&s)?),

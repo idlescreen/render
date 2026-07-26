@@ -1,6 +1,6 @@
 [package]
 name = "render"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 license = "Apache-2.0"
 description = "IdleScreen offline export capability — simulation to AV1 video"
@@ -8,6 +8,8 @@ repository = "https://github.com/idlescreen/render"
 readme = "../README.md"
 keywords = ["idlescreen", "screensaver", "av1", "render"]
 categories = ["command-line-utilities", "multimedia"]
+# Prefer the product name when multiple bins share main.rs.
+default-run = "render"
 
 [lib]
 name = "idle_render"

@@ -21,13 +21,19 @@ render/                 # this repo
 ### Build
 
 ```bash
-# needs sibling idlescreen/idle checkout (path ../../idle from engine/)
+# needs sibling idlescreen/idle checkout (symlink: render/idle -> ../idle)
+ln -sfn ../idle idle   # once, from this repo root
 cargo build --release -p render -p idle-studio
+# bins: target/release/render  and  target/release/idle-studio
 ```
 
 ### CLI
 
 ```bash
+# dry-run needs effect only (no -o)
+cargo run -p render --release -- -e beams --duration 1s --dry-run
+# real export (uses installed savers under /usr/libexec/idle/screensavers)
+cargo run -p render --release -- -e beams --duration 1s -o /tmp/beams.mkv
 render -e ripple --duration 10s -o /tmp/ripple.mkv
 render -e ripple --duration 10s --width 3840 --height 2160 --fps 30 -o /tmp/4k.mkv
 render --job-file /path/to/job.json
