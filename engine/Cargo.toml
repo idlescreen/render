@@ -1,6 +1,6 @@
 [package]
 name = "render"
-version = "0.3.2"
+version = "0.3.3"
 edition = "2021"
 license = "Apache-2.0"
 description = "IdleScreen offline export capability — simulation to AV1 video"
@@ -42,7 +42,7 @@ name = "render"
 maintainer = "IdleScreen <jerydleuck@gmail.com>"
 copyright = "2026 IdleScreen"
 extended-description = "Offline IdleScreen effect renderer (saver math → AV1 via ffmpeg)."
-depends = "libc6, ffmpeg"
+depends = "libc6, ffmpeg | ffmpeg-free | ffmpeg-full"
 recommends = "idle-savers"
 section = "utils"
 priority = "optional"
@@ -64,8 +64,10 @@ assets = [
     { source = "../target/release/idle-render", dest = "/usr/bin/idle-render", mode = "755", user = "root", group = "root" }
 ]
 
+# File dependency: Fedora ships ffmpeg-free; RPM Fusion ships ffmpeg.
+# Requiring the binary avoids package-name conflicts (ffmpeg vs ffmpeg-free).
 [package.metadata.generate-rpm.requires]
-ffmpeg = "*"
+"/usr/bin/ffmpeg" = "*"
 
 [package.metadata.generate-rpm.recommends]
 idle-savers = "*"
