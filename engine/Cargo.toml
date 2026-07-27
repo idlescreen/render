@@ -1,6 +1,6 @@
 [package]
 name = "render"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 license = "Apache-2.0"
 description = "IdleScreen offline export capability — simulation to AV1 video"
@@ -41,11 +41,31 @@ proptest = "1"
 name = "render"
 maintainer = "IdleScreen <jerydleuck@gmail.com>"
 copyright = "2026 IdleScreen"
-extended-description = "Offline IdleScreen effect renderer (ffmpeg AV1)."
+extended-description = "Offline IdleScreen effect renderer (saver math → AV1 via ffmpeg)."
 depends = "libc6, ffmpeg"
+recommends = "idle-savers"
 section = "utils"
 priority = "optional"
 assets = [
-    ["target/release/render", "usr/bin/render", "755"],
-    ["target/release/idle-render", "usr/bin/idle-render", "755"]
+    ["../target/release/render", "usr/bin/render", "755"],
+    ["../target/release/idle-render", "usr/bin/idle-render", "755"]
 ]
+
+[package.metadata.generate-rpm]
+name = "render"
+release = "1"
+arch = "x86_64"
+summary = "IdleScreen offline export (render)"
+description = "Offline IdleScreen effect renderer — simulation to AV1 video via ffmpeg."
+license = "Apache-2.0"
+assets = [
+    # Workspace builds place binaries in render/target/release (parent of engine/).
+    { source = "../target/release/render", dest = "/usr/bin/render", mode = "755", user = "root", group = "root" },
+    { source = "../target/release/idle-render", dest = "/usr/bin/idle-render", mode = "755", user = "root", group = "root" }
+]
+
+[package.metadata.generate-rpm.requires]
+ffmpeg = "*"
+
+[package.metadata.generate-rpm.recommends]
+idle-savers = "*"

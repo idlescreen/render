@@ -2,7 +2,7 @@
 Name=IdleScreen Studio
 GenericName=Offline Render Queue & Director
 Comment=Director UI for IdleScreen offline video rendering
-Exec=idle-studio tui
+Exec=idle-studio
 Icon=video-x-generic
 Terminal=true
 Type=Application

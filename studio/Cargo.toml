@@ -1,6 +1,6 @@
 [package]
 name = "idle-studio"
-version = "0.3.2"
+version = "0.3.3"
 edition = "2021"
 license = "Apache-2.0"
 description = "IdleScreen Studio — UI that drives the render capability"
@@ -37,11 +37,13 @@ proptest = "1"
 name = "idle-studio"
 copyright = "2026 IdleScreen"
 maintainer = "IdleScreen <jerydleuck@gmail.com>"
-extended-description = "IdleScreen Studio UI — queues jobs for the render capability."
+extended-description = "IdleScreen Studio (TUI Director) — queues offline jobs for the render capability."
+depends = "libc6, render"
+recommends = "idle-savers, ffmpeg"
 section = "utils"
 priority = "optional"
 assets = [
-    ["target/release/idle-studio", "usr/bin/idle-studio", "755"],
+    ["../target/release/idle-studio", "usr/bin/idle-studio", "755"],
     ["assets/io.github.idlescreen.studio.desktop", "usr/share/applications/io.github.idlescreen.studio.desktop", "644"]
 ]
 
@@ -49,10 +51,17 @@ assets = [
 name = "idle-studio"
 release = "1"
 arch = "x86_64"
-summary = "IdleScreen Studio UI"
-description = "IdleScreen Studio UI — drives render offline export jobs."
+summary = "IdleScreen Studio (TUI Director)"
+description = "IdleScreen Studio TUI — queues and runs offline render export jobs."
 license = "Apache-2.0"
 assets = [
-    { source = "target/release/idle-studio", dest = "/usr/bin/idle-studio", mode = "755" },
-    { source = "assets/io.github.idlescreen.studio.desktop", dest = "/usr/share/applications/io.github.idlescreen.studio.desktop", mode = "644" }
+    { source = "../target/release/idle-studio", dest = "/usr/bin/idle-studio", mode = "755", user = "root", group = "root" },
+    { source = "assets/io.github.idlescreen.studio.desktop", dest = "/usr/share/applications/io.github.idlescreen.studio.desktop", mode = "644", user = "root", group = "root" }
 ]
+
+[package.metadata.generate-rpm.requires]
+render = "*"
+
+[package.metadata.generate-rpm.recommends]
+idle-savers = "*"
+ffmpeg = "*"
