@@ -27,6 +27,8 @@ pub fn export_seed_env(seed: u64) {
         std::env::set_var("IDLE_RENDER_SEED", seed.to_string());
         std::env::set_var("TRANCE_SEED", seed.to_string());
         std::env::set_var("IDLE_DISABLE_SANDBOX", "1");
+        // Release sandbox escape requires both flags (see idle-runner sandbox.rs).
+        std::env::set_var("IDLE_RENDER_PIPELINE", "1");
         std::env::set_var("TRANCE_DISABLE_SANDBOX", "1");
         std::env::set_var("IDLE_EXPORT_MODE", "1");
         std::env::set_var("TRANCE_EXPORT_MODE", "1");
