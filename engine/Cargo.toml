@@ -1,6 +1,6 @@
 [package]
 name = "render"
-version = "0.3.3"
+version = "1.0.0"
 edition = "2021"
 license = "Apache-2.0"
 description = "IdleScreen offline export capability — simulation to AV1 video"
