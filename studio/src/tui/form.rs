@@ -153,6 +153,12 @@ impl NewJobForm {
             encoder: None,
             prefer_hw: true,
             gpu_upscale: false, // match host: CPU upscale path for predictable export
+            format: None,
+            container: None,
+            baseline_dir: None,
+            snapshot_last_only: false,
+            update_baselines: false,
+            cpu_raster: false,
         })
     }
 }

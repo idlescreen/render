@@ -139,6 +139,12 @@ fn main() -> ExitCode {
                 encoder: None,
                 prefer_hw: !no_hw_encode,
                 gpu_upscale: !no_gpu_upscale,
+                format: None,
+                container: None,
+                baseline_dir: None,
+                snapshot_last_only: false,
+                update_baselines: false,
+                cpu_raster: false,
             };
             queue.enqueue(StudioJob::new(id.clone(), spec));
             match queue.save(&path) {
