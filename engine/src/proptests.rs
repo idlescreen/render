@@ -58,6 +58,12 @@ mod segment_props {
             encoder: None,
             prefer_hw: true,
             gpu_upscale: true,
+            format: crate::models::OutputFormat::Mp4,
+            container: crate::models::Container::Mkv,
+            baseline_dir: None,
+            snapshot_last_only: false,
+            update_baselines: false,
+            cpu_raster: false,
         }
     }
 

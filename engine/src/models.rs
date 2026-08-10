@@ -15,6 +15,38 @@ impl PixelFormat {
     }
 }
 
+/// Output family for a render job (added Sprint 02).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OutputFormat {
+    /// MP4 / MKV video (AV1 default, H.264 via `--format mp4 --container mp4`).
+    Mp4,
+    /// One PNG per frame (directory).
+    Png,
+    /// Raw BGRA + 16-byte GBRI header to stdout.
+    Raw,
+}
+
+impl Default for OutputFormat {
+    fn default() -> Self {
+        Self::Mp4
+    }
+}
+
+/// Container for video outputs (only meaningful when [`OutputFormat::Mp4`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Container {
+    /// Matroska (default; supports AV1, H.264).
+    Mkv,
+    /// ISOBMFF MP4 (H.264 default; AV1 also supported in modern ffmpeg).
+    Mp4,
+}
+
+impl Default for Container {
+    fn default() -> Self {
+        Self::Mkv
+    }
+}
+
 /// Fully validated offline render request.
 #[derive(Debug, Clone)]
 pub struct RenderJob {
@@ -45,6 +77,18 @@ pub struct RenderJob {
     pub prefer_hw: bool,
     /// GPU upscale in idle-runner (wgpu path when available).
     pub gpu_upscale: bool,
+    /// Output family (mp4 / png / raw). Added Sprint 02.
+    pub format: OutputFormat,
+    /// Container for video outputs. Added Sprint 02.
+    pub container: Container,
+    /// Optional baseline directory for snapshot comparison.
+    pub baseline_dir: Option<PathBuf>,
+    /// When true, only the final frame is written and compared to baseline.
+    pub snapshot_last_only: bool,
+    /// When true, overwrite baseline files instead of comparing.
+    pub update_baselines: bool,
+    /// Force CPU raster/encoder path (deterministic; bypass GPU variance).
+    pub cpu_raster: bool,
 }
 
 impl RenderJob {
@@ -106,6 +150,9 @@ impl RenderJob {
                 return Err(RenderError::Job("segment duration must be > 0".into()));
             }
         }
+        if let Some(p) = &self.baseline_dir {
+            deny_parent_dirs(p, "baseline_dir")?;
+        }
         Ok(())
     }
 }
@@ -135,6 +182,12 @@ mod tests {
             encoder: None,
             prefer_hw: true,
             gpu_upscale: true,
+            format: OutputFormat::Mp4,
+            container: Container::Mkv,
+            baseline_dir: None,
+            snapshot_last_only: false,
+            update_baselines: false,
+            cpu_raster: false,
         }
     }
 

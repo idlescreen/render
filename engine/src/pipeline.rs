@@ -241,6 +241,12 @@ mod tests {
             encoder: None,
             prefer_hw: true,
             gpu_upscale: true,
+            format: crate::models::OutputFormat::Mp4,
+            container: crate::models::Container::Mkv,
+            baseline_dir: None,
+            snapshot_last_only: false,
+            update_baselines: false,
+            cpu_raster: false,
         };
         let r = run_pipeline(&job, EncodeBackend::RawDump).expect("dry");
         assert_eq!(r.frames, 3600);
