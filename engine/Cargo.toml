@@ -33,9 +33,13 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # Path goes outside this workspace so idle's own workspace root applies.
 idle-runner = { path = "../../idle/idle-runner" }
 idle-api = { path = "../../idle/idle-api" }
+# Pure-Rust PNG encoder for deterministic snapshot output (Sprint 02).
+png = { workspace = true }
 
 [dev-dependencies]
 proptest = "1"
+# Scratch dirs for snapshot tests that generate baseline files on disk.
+tempfile = "3"
 
 [package.metadata.deb]
 name = "render"

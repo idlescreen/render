@@ -5,7 +5,7 @@
 use crate::duration::parse_duration_secs;
 use crate::encode::EncodeBackend;
 use crate::error::RenderError;
-use crate::models::RenderJob;
+use crate::models::{Container, OutputFormat, RenderJob};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
@@ -52,25 +52,47 @@ pub struct JobSpec {
     /// Request GPU upscale path (default true).
     #[serde(default = "default_true")]
     pub gpu_upscale: bool,
+    /// Output family (`mp4` / `png` / `raw`). Default `mp4`.
+    #[serde(default)]
+    pub format: Option<String>,
+    /// Container (`mp4` / `mkv`). Default `mkv`.
+    #[serde(default)]
+    pub container: Option<String>,
+    /// Optional baseline directory for snapshot comparison.
+    #[serde(default)]
+    pub baseline_dir: Option<PathBuf>,
+    /// Only compare final frame against baseline.
+    #[serde(default)]
+    pub snapshot_last_only: bool,
+    /// Overwrite baseline files instead of comparing.
+    #[serde(default)]
+    pub update_baselines: bool,
+    /// Force CPU raster (deterministic; bypass GPU variance).
+    #[serde(default)]
+    pub cpu_raster: bool,
 }
 
-fn default_seed() -> u64 {
-    0x00C0_FFEE
+fn default_seed() -> u64 { 0x00C0_FFEE }
+fn default_fps() -> u32 { 30 }
+fn default_w() -> u32 { 1280 }
+fn default_h() -> u32 { 720 }
+fn default_crf() -> u8 { 35 }
+fn default_true() -> bool { true }
+
+fn parse_format(s: &str) -> Result<OutputFormat, RenderError> {
+    Ok(match s.to_ascii_lowercase().as_str() {
+        "mp4" | "video" => OutputFormat::Mp4,
+        "png" | "pngs" | "png-sequence" | "png_sequence" => OutputFormat::Png,
+        "raw" | "stdout" | "stdout-raw" | "stdout_raw" => OutputFormat::Raw,
+        other => return Err(RenderError::Job(format!("unknown format '{other}'"))),
+    })
 }
-fn default_fps() -> u32 {
-    30
-}
-fn default_w() -> u32 {
-    1280
-}
-fn default_h() -> u32 {
-    720
-}
-fn default_crf() -> u8 {
-    35
-}
-fn default_true() -> bool {
-    true
+fn parse_container(s: &str) -> Result<Container, RenderError> {
+    Ok(match s.to_ascii_lowercase().as_str() {
+        "mkv" | "matroska" => Container::Mkv,
+        "mp4" => Container::Mp4,
+        other => return Err(RenderError::Job(format!("unknown container '{other}'"))),
+    })
 }
 
 impl JobSpec {
@@ -107,6 +129,20 @@ impl JobSpec {
             Some(s) => Some(parse_duration_secs(&s)?),
             None => None,
         };
+        let format = if self.raw {
+            OutputFormat::Raw
+        } else {
+            match &self.format {
+                Some(s) => parse_format(s)?,
+                None => OutputFormat::Mp4,
+            }
+        };
+        let container = match &self.container {
+            Some(s) => parse_container(s)?,
+            None => Container::Mkv,
+        };
+        // `raw` in JSON also toggles the stdout-raw flag (legacy alias).
+        let stdout_raw = self.raw;
         let job = RenderJob {
             effect: self.effect,
             plugin_path: self.plugin_path,
@@ -127,12 +163,21 @@ impl JobSpec {
             encoder: self.encoder,
             prefer_hw: self.prefer_hw,
             gpu_upscale: self.gpu_upscale,
+            format,
+            container,
+            baseline_dir: self.baseline_dir,
+            snapshot_last_only: self.snapshot_last_only,
+            update_baselines: self.update_baselines,
+            cpu_raster: self.cpu_raster,
         };
         job.validate()?;
-        let backend = if self.raw || job.dry_run {
-            EncodeBackend::RawDump
-        } else {
-            EncodeBackend::FfmpegAv1
+        let backend = match job.format {
+            OutputFormat::Png => EncodeBackend::PngSequence,
+            OutputFormat::Raw if stdout_raw => EncodeBackend::StdoutRaw,
+            OutputFormat::Raw => EncodeBackend::RawDump,
+            OutputFormat::Mp4 if job.dry_run => EncodeBackend::RawDump,
+            OutputFormat::Mp4 if matches!(job.container, Container::Mp4) => EncodeBackend::FfmpegH264,
+            OutputFormat::Mp4 => EncodeBackend::FfmpegAv1,
         };
         Ok((job, backend))
     }
@@ -142,9 +187,8 @@ impl JobSpec {
 mod tests {
     use super::*;
 
-    #[test]
-    fn roundtrip_json() {
-        let spec = JobSpec {
+    fn sample_spec() -> JobSpec {
+        JobSpec {
             effect: "ripple".into(),
             plugin_path: None,
             seed: 1,
@@ -165,13 +209,47 @@ mod tests {
             encoder: None,
             prefer_hw: true,
             gpu_upscale: true,
-        };
-        let s = serde_json::to_string(&spec).expect("ser");
+            format: Some("png".into()),
+            container: Some("mp4".into()),
+            baseline_dir: Some(PathBuf::from("/tmp/baselines")),
+            snapshot_last_only: true,
+            update_baselines: false,
+            cpu_raster: true,
+        }
+    }
+
+    #[test]
+    fn roundtrip_json() {
+        let s = serde_json::to_string(&sample_spec()).expect("ser");
         let back: JobSpec = serde_json::from_str(&s).expect("de");
         assert_eq!(back.effect, "ripple");
         assert_eq!(back.segment.as_deref(), Some("5s"));
-        let (job, _) = back.into_job().expect("job");
+        assert_eq!(back.format.as_deref(), Some("png"));
+        assert_eq!(back.container.as_deref(), Some("mp4"));
+        assert!(back.snapshot_last_only);
+        assert!(back.cpu_raster);
+        let (job, backend) = back.into_job().expect("job");
         assert_eq!(job.frame_count(), 300);
         assert!(job.resume);
+        assert_eq!(job.format, OutputFormat::Png);
+        assert_eq!(job.container, Container::Mp4);
+        assert!(matches!(backend, EncodeBackend::PngSequence));
+    }
+
+    #[test]
+    fn raw_flag_overrides_format_to_raw() {
+        let mut spec = sample_spec();
+        spec.effect = "beams".into();
+        spec.seed = 0xDEAD_BEEF;
+        spec.duration = "2s".into();
+        spec.raw = true;
+        spec.format = Some("mp4".into());
+        spec.segment = None;
+        spec.resume = false;
+        spec.preset = None;
+        let (job, backend) = spec.into_job().expect("job");
+        assert_eq!(job.format, OutputFormat::Raw);
+        assert!(matches!(backend, EncodeBackend::StdoutRaw));
     }
 }
+

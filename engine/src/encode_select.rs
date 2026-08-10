@@ -1,13 +1,18 @@
-//! AV1 encoder discovery and quality-flag mapping.
+//! AV1 + H.264 encoder discovery and quality-flag mapping.
 
 use crate::error::RenderError;
 use std::process::Command;
 
 /// Software AV1 encoders (CPU), preferred order.
 pub const SW_AV1_CANDIDATES: &[&str] = &["libsvtav1", "libaom-av1", "librav1e"];
-
 /// Hardware AV1 encoders that accept CPU-fed frames (skip VAAPI — needs hwupload).
 pub const HW_AV1_CANDIDATES: &[&str] = &["av1_nvenc", "av1_qsv", "av1_amf"];
+
+/// H.264 software encoder (always prefer libx264 — universally available).
+pub const SW_H264_CANDIDATES: &[&str] = &["libx264"];
+/// H.264 hardware encoders (NVENC/QSV/AMF), in preference order.
+pub const HW_H264_CANDIDATES: &[&str] = &["h264_nvenc", "h264_qsv", "h264_amf"];
+
 
 /// Quality / speed knobs passed to ffmpeg.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -123,12 +128,29 @@ pub fn detect_av1_encoder(prefer_hw: bool) -> Result<String, RenderError> {
     ))
 }
 
-/// True for NVENC / QSV / AMF style hardware AV1.
+/// Pick an available H.264 encoder (hardware first when `prefer_hw`).
+/// Mirrors [`detect_av1_encoder`] for the H.264 family.
+pub fn detect_h264_encoder(prefer_hw: bool) -> Result<String, RenderError> {
+    let text = ffmpeg_encoders_text()?;
+    if prefer_hw {
+        if let Some(name) = first_working(&text, HW_H264_CANDIDATES) {
+            return Ok(name);
+        }
+    }
+    if let Some(name) = first_working(&text, SW_H264_CANDIDATES) {
+        return Ok(name);
+    }
+    if !prefer_hw {
+        if let Some(name) = first_working(&text, HW_H264_CANDIDATES) {
+            return Ok(name);
+        }
+    }
+    Err(RenderError::Ffmpeg("no working H.264 encoder".into()))
+}
+
+/// True for NVENC / QSV / AMF style hardware encoders (AV1 or H.264).
 pub fn is_hardware_encoder(name: &str) -> bool {
-    HW_AV1_CANDIDATES.contains(&name)
-        || name.ends_with("_nvenc")
-        || name.ends_with("_qsv")
-        || name.ends_with("_amf")
+    name.ends_with("_nvenc") || name.ends_with("_qsv") || name.ends_with("_amf")
 }
 
 /// Append encoder-specific quality flags after `-c:v <name>`.
@@ -165,6 +187,21 @@ pub fn push_quality_args(args: &mut Vec<String>, encoder: &str, settings: &Encod
         if let Some(preset) = &settings.preset {
             args.push("-preset".into());
             args.push(preset.clone());
+        }
+    }
+}
+
+/// Append H.264-specific quality flags after `-c:v <name>`. NVENC uses `-rc vbr -cq`;
+/// libx264/QSV/AMF use `-crf` (the latter two honor it in current builds).
+pub fn push_h264_quality_args(args: &mut Vec<String>, encoder: &str, settings: &EncodeSettings) {
+    let q = settings.crf.to_string();
+    if encoder.contains("nvenc") {
+        args.push("-rc".into()); args.push("vbr".into()); args.push("-cq".into()); args.push(q);
+        args.push("-preset".into()); args.push(settings.preset.clone().unwrap_or_else(|| "p4".into()));
+    } else {
+        args.push("-crf".into()); args.push(q);
+        if let Some(preset) = &settings.preset {
+            args.push("-preset".into()); args.push(preset.clone());
         }
     }
 }
@@ -211,6 +248,9 @@ mod tests {
     #[test]
     fn hardware_classifier() {
         assert!(is_hardware_encoder("av1_nvenc"));
+        assert!(is_hardware_encoder("h264_nvenc"));
         assert!(!is_hardware_encoder("libsvtav1"));
+        assert!(!is_hardware_encoder("libx264"));
     }
 }
+

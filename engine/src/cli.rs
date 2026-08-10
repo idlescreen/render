@@ -2,7 +2,7 @@ use crate::duration::parse_duration_secs;
 use crate::encode::EncodeBackend;
 use crate::error::RenderError;
 use crate::job_spec::JobSpec;
-use crate::models::RenderJob;
+use crate::models::{Container, OutputFormat, RenderJob};
 use clap::Parser;
 use std::path::PathBuf;
 
@@ -72,7 +72,7 @@ pub struct Args {
     #[arg(long)]
     pub dry_run: bool,
 
-    /// Write raw BGRA dump instead of AV1 (debug/tests)
+    /// Write raw BGRA dump instead of AV1 (debug/tests). Alias for `--format raw`.
     #[arg(long)]
     pub raw: bool,
 
@@ -99,6 +99,66 @@ pub struct Args {
     /// Force CPU upscale
     #[arg(long)]
     pub no_gpu_upscale: bool,
+
+    /// Output family: `mp4` (video, default), `png` (per-frame), `raw` (stdout BGRA).
+    #[arg(long, value_enum, default_value_t = CliFormat::Mp4)]
+    pub format: CliFormat,
+
+    /// Container for video output: `mkv` (AV1 default) or `mp4` (H.264 default).
+    #[arg(long, value_enum, default_value_t = CliContainer::Mkv)]
+    pub container: CliContainer,
+
+    /// Stream raw BGRA + 16-byte header to stdout. Equivalent to `--format raw`.
+    #[arg(long)]
+    pub stdout_raw: bool,
+
+    /// Snapshot compare directory (when set, --snapshot-last-only compares last frame).
+    #[arg(long)]
+    pub baseline_dir: Option<PathBuf>,
+
+    /// Overwrite baseline files instead of comparing (dev only).
+    #[arg(long)]
+    pub update_baselines: bool,
+
+    /// Only compare final frame against baseline (skips all-but-last encode work).
+    #[arg(long)]
+    pub snapshot_last_only: bool,
+
+    /// Force CPU rendering path (deterministic; bypass GPU variance for tests).
+    #[arg(long)]
+    pub cpu_raster: bool,
+}
+
+#[derive(Debug, Clone, Copy, clap::ValueEnum, PartialEq, Eq)]
+pub enum CliFormat {
+    Mp4,
+    Png,
+    Raw,
+}
+
+impl From<CliFormat> for OutputFormat {
+    fn from(v: CliFormat) -> Self {
+        match v {
+            CliFormat::Mp4 => OutputFormat::Mp4,
+            CliFormat::Png => OutputFormat::Png,
+            CliFormat::Raw => OutputFormat::Raw,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, clap::ValueEnum, PartialEq, Eq)]
+pub enum CliContainer {
+    Mkv,
+    Mp4,
+}
+
+impl From<CliContainer> for Container {
+    fn from(v: CliContainer) -> Self {
+        match v {
+            CliContainer::Mkv => Container::Mkv,
+            CliContainer::Mp4 => Container::Mp4,
+        }
+    }
 }
 
 impl Args {
@@ -123,6 +183,17 @@ impl Args {
             Some(s) => Some(parse_duration_secs(&s)?),
             None => None,
         };
+        // `--stdout-raw` always streams with the GBRI header; `--raw` (legacy)
+        // is a synonym for `--format raw --stdout-raw`. The `format` field
+        // itself is just `--format {png,mp4,raw}` — `raw` means raw-BGRA-to-file.
+        let format: OutputFormat = if self.raw || self.stdout_raw {
+            OutputFormat::Raw
+        } else {
+            self.format.into()
+        };
+        // `format == Raw` becomes RawDump (file); `--stdout-raw` upgrades it
+        // to StdoutRaw so the 16-byte header is emitted.
+        let stdout_raw = self.stdout_raw;
         let job = RenderJob {
             effect,
             plugin_path: self.plugin_path,
@@ -143,12 +214,23 @@ impl Args {
             encoder: self.encoder,
             prefer_hw: !self.no_hw_encode,
             gpu_upscale: !self.no_gpu_upscale,
+            format,
+            container: self.container.into(),
+            baseline_dir: self.baseline_dir,
+            snapshot_last_only: self.snapshot_last_only,
+            update_baselines: self.update_baselines,
+            cpu_raster: self.cpu_raster,
         };
         job.validate()?;
-        let backend = if self.raw || job.dry_run {
-            EncodeBackend::RawDump
-        } else {
-            EncodeBackend::FfmpegAv1
+        let backend = match job.format {
+            OutputFormat::Png => EncodeBackend::PngSequence,
+            OutputFormat::Raw if stdout_raw => EncodeBackend::StdoutRaw,
+            OutputFormat::Raw => EncodeBackend::RawDump,
+            OutputFormat::Mp4 if job.dry_run => EncodeBackend::RawDump,
+            OutputFormat::Mp4 if matches!(job.container, Container::Mp4) => {
+                EncodeBackend::FfmpegH264
+            }
+            OutputFormat::Mp4 => EncodeBackend::FfmpegAv1,
         };
         Ok((job, backend))
     }

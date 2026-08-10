@@ -37,6 +37,12 @@ mod job_props {
                     encoder: None,
                     prefer_hw: true,
                     gpu_upscale: true,
+                    format: None,
+                    container: None,
+                    baseline_dir: None,
+                    snapshot_last_only: false,
+                    update_baselines: false,
+                    cpu_raster: false,
                 },
             };
             let path = j.write_job_file().expect("write");

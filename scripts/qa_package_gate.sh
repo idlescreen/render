@@ -27,4 +27,15 @@ cargo test -p render -p idle-studio --quiet
 echo ">>> dry-run render (plan only)"
 cargo build --release -p render -q
 ./target/release/render -e beams --duration 1s --dry-run
+if command -v ffmpeg >/dev/null 2>&1 && [[ -f ../idle-saver-beams/target/release/libscreensaver_beams.so ]]; then
+  echo ">>> snapshot compare (PNG last frame vs baseline)"
+  IDLE_ALLOW_UNSIGNED_PLUGINS=1 \
+    ./target/release/render \
+      --plugin-path "$(cd .. && pwd)/idle-saver-beams/target/release/libscreensaver_beams.so" \
+      -e beams --seed 3735928559 --duration 2s \
+      --format png --cpu-raster \
+      --baseline-dir engine/tests/snapshots/baselines \
+      --snapshot-last-only \
+      -o /tmp/qa-snap.png
+fi
 echo "RENDER_PACKAGE_GATE_PASS"

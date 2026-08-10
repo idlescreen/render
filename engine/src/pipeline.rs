@@ -3,6 +3,7 @@ use crate::encode::{encode_raw_bgra_to_file, EncodeBackend, EncodeSettings};
 use crate::error::RenderError;
 use crate::models::RenderJob;
 use crate::paths::ensure_parent_dir;
+use crate::pipeline_snapshot::SnapshotOutcome;
 use crate::segment::{concat_segments, plan_segments, segment_file_ready};
 use idle_runner::plugin_session::PluginSession;
 use std::path::PathBuf;
@@ -17,6 +18,8 @@ pub struct PipelineResult {
     pub segments: u32,
     /// Segments skipped via --resume (existing part files).
     pub resumed_segments: u32,
+    /// Snapshot compare result, when `--baseline-dir` was set.
+    pub snapshot: SnapshotOutcome,
 }
 
 /// Export seed env vars so plugins using [`idle_api::LcgRng::from_env_or_random`] match.
@@ -136,6 +139,7 @@ pub fn run_pipeline(
             dry_run: true,
             segments: plans.len() as u32,
             resumed_segments: 0,
+            snapshot: SnapshotOutcome::Skipped,
         });
     }
 
@@ -195,9 +199,7 @@ pub fn run_pipeline(
         );
     }
 
-    if part_paths.len() > 1 {
-        concat_segments(&part_paths, &job.output)?;
-    } else if part_paths.len() == 1 && part_paths[0] != job.output {
+    if part_paths.len() != 1 || part_paths[0] != job.output {
         concat_segments(&part_paths, &job.output)?;
     }
 
@@ -205,12 +207,14 @@ pub fn run_pipeline(
         mux_audio_bed(&job.output, audio, &job.output)?;
     }
 
+    let snapshot = crate::pipeline_snapshot::run_snapshot(job)?;
     Ok(PipelineResult {
         frames: written,
         output: job.output.clone(),
         dry_run: false,
         segments: plans.len() as u32,
         resumed_segments,
+        snapshot,
     })
 }
 
@@ -219,29 +223,24 @@ mod tests {
     use super::*;
     use std::time::Duration;
 
+    fn sample_job(dur_secs: u64, seg: Option<u64>) -> RenderJob {
+        RenderJob {
+            effect: "beams".into(), plugin_path: None, seed: 42, fps: 30,
+            duration: Duration::from_secs(dur_secs), width: 64, height: 64,
+            output: PathBuf::from("/tmp/unused.mkv"), cols: None, rows: None,
+            dry_run: true, segment: seg.map(Duration::from_secs),
+            audio: None, resume: false, crf: 35, preset: None, encoder: None,
+            prefer_hw: true, gpu_upscale: true,
+            format: crate::models::OutputFormat::Mp4,
+            container: crate::models::Container::Mkv,
+            baseline_dir: None, snapshot_last_only: false,
+            update_baselines: false, cpu_raster: false,
+        }
+    }
+
     #[test]
     fn dry_run_reports_frame_count_and_segments() {
-        let job = RenderJob {
-            effect: "beams".into(),
-            plugin_path: None,
-            seed: 42,
-            fps: 30,
-            duration: Duration::from_secs(120),
-            width: 64,
-            height: 64,
-            output: PathBuf::from("/tmp/unused.mkv"),
-            cols: None,
-            rows: None,
-            dry_run: true,
-            segment: Some(Duration::from_secs(60)),
-            audio: None,
-            resume: false,
-            crf: 35,
-            preset: None,
-            encoder: None,
-            prefer_hw: true,
-            gpu_upscale: true,
-        };
+        let job = sample_job(120, Some(60));
         let r = run_pipeline(&job, EncodeBackend::RawDump).expect("dry");
         assert_eq!(r.frames, 3600);
         assert_eq!(r.segments, 2);

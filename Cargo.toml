@@ -4,3 +4,7 @@ resolver = "2"
 
 # Default binary for `cargo run` convenience
 default-members = ["engine"]
+
+[workspace.dependencies]
+# Pure-Rust PNG encoder for sprite-style snapshots (added in Sprint 02).
+png = "0.17"
