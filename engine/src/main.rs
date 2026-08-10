@@ -2,7 +2,9 @@
 
 use clap::Parser;
 use idle_render::cli::Args;
+use idle_render::models::{Container, OutputFormat};
 use idle_render::pipeline::run_pipeline;
+use idle_render::pipeline_snapshot::SnapshotOutcome;
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
@@ -23,8 +25,14 @@ fn main() -> ExitCode {
     };
 
     if job.dry_run {
+        let container = match (job.format, job.container) {
+            (OutputFormat::Mp4, Container::Mkv) => "mkv/av1",
+            (OutputFormat::Mp4, Container::Mp4) => "mp4/h264",
+            (OutputFormat::Png, _) => "png-sequence",
+            (OutputFormat::Raw, _) => "stdout-raw",
+        };
         eprintln!(
-            "dry-run: effect={} seed={} fps={} frames={} segments={} crf={} resume={} hw={} gpu_upscale={} {}x{} -> {}",
+            "dry-run: effect={} seed={} fps={} frames={} segments={} crf={} resume={} hw={} gpu_upscale={} {}x{} format={} -> {}",
             job.effect,
             job.seed,
             job.fps,
@@ -36,6 +44,7 @@ fn main() -> ExitCode {
             job.gpu_upscale,
             job.width,
             job.height,
+            container,
             job.output.display()
         );
     }
@@ -50,6 +59,19 @@ fn main() -> ExitCode {
                 r.output.display(),
                 if r.dry_run { " (dry-run)" } else { "" }
             );
+            match &r.snapshot {
+                SnapshotOutcome::Skipped => {}
+                SnapshotOutcome::Matched { path } => eprintln!("snapshot: matched {}", path.display()),
+                SnapshotOutcome::Updated { path } => eprintln!("snapshot: updated {}", path.display()),
+                SnapshotOutcome::MissingBaseline { path } => {
+                    eprintln!("snapshot: missing baseline at {} (run --update-baselines to seed)", path.display());
+                    return ExitCode::from(3);
+                }
+                SnapshotOutcome::Mismatched { path, reason } => {
+                    eprintln!("snapshot: mismatch at {} ({})", path.display(), reason);
+                    return ExitCode::from(4);
+                }
+            }
             ExitCode::SUCCESS
         }
         Err(e) => {
