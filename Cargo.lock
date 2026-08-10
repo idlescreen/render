@@ -922,7 +922,7 @@ checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
 
 [[package]]
 name = "idle-api"
-version = "3.0.1"
+version = "3.1.0"
 dependencies = [
  "bytemuck",
  "serde",
@@ -932,7 +932,7 @@ dependencies = [
 
 [[package]]
 name = "idle-runner"
-version = "3.0.1"
+version = "3.1.0"
 dependencies = [
  "bytemuck",
  "crossterm",
@@ -954,7 +954,7 @@ dependencies = [
 
 [[package]]
 name = "idle-studio"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "clap",
  "crossterm",
@@ -2043,7 +2043,7 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "render"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "clap",
  "idle-api",
