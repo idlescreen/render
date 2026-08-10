@@ -135,8 +135,8 @@ mod tests {
         let tmp = tempfile::tempdir().expect("tmp");
         let a = tmp.path().join("a.bgra");
         let b = tmp.path().join("b.bgra");
-        std::fs::write(&a, &[1u8, 2, 3, 4]).expect("write");
-        std::fs::write(&b, &[1u8, 2, 3, 4]).expect("write");
+        std::fs::write(&a, [1u8, 2, 3, 4]).expect("write");
+        std::fs::write(&b, [1u8, 2, 3, 4]).expect("write");
         compare(&a, &b).expect("eq");
     }
 
@@ -145,8 +145,8 @@ mod tests {
         let tmp = tempfile::tempdir().expect("tmp");
         let a = tmp.path().join("a.bgra");
         let b = tmp.path().join("b.bgra");
-        std::fs::write(&a, &[1u8, 2, 3, 4]).expect("write");
-        std::fs::write(&b, &[1u8, 2, 3, 5]).expect("write");
+        std::fs::write(&a, [1u8, 2, 3, 4]).expect("write");
+        std::fs::write(&b, [1u8, 2, 3, 5]).expect("write");
         let e = compare(&a, &b).expect_err("diff");
         assert!(matches!(e, SnapshotMismatch::PixelMismatch { .. }));
     }
@@ -156,7 +156,7 @@ mod tests {
         let tmp = tempfile::tempdir().expect("tmp");
         let a = tmp.path().join("a.bgra");
         let b = tmp.path().join("absent.bgra");
-        std::fs::write(&a, &[1u8]).expect("write");
+        std::fs::write(&a, [1u8]).expect("write");
         let e = compare(&a, &b).expect_err("missing");
         assert!(matches!(e, SnapshotMismatch::MissingBaseline(_)));
     }

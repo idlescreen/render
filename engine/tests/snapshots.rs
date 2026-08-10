@@ -11,7 +11,7 @@ use idle_render::models::{Container, OutputFormat, RenderJob};
 use idle_render::pipeline::run_pipeline;
 use idle_render::pipeline_snapshot::{baseline_path_for, SnapshotOutcome};
 use idle_render::EncodeBackend;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tempfile::tempdir;
 
@@ -33,7 +33,7 @@ fn plugin_path(name: &str) -> PathBuf {
     std::fs::canonicalize(&candidate).unwrap_or(candidate)
 }
 
-fn skip_if_missing(p: &PathBuf) -> bool {
+fn skip_if_missing(p: &Path) -> bool {
     if !p.is_file() {
         eprintln!("skipping snapshot test: plugin not built at {}", p.display());
         true
@@ -42,28 +42,33 @@ fn skip_if_missing(p: &PathBuf) -> bool {
     }
 }
 
+type Scenario = (/*name*/ &'static str, /*effect*/ &'static str, /*seed*/ u64, /*fps*/ u32, /*dur*/ Duration, /*w*/ u32, /*h*/ u32, /*format*/ OutputFormat, /*container*/ Container);
+
 /// Build the canonical 6 scenarios (per Sprint 02 spec table).
-fn six_scenarios() -> Vec<(&'static str, &'static str, u64, u32, Duration, OutputFormat, Container)> {
+fn six_scenarios() -> Vec<Scenario> {
     vec![
-        ("beams_steady", "beams", 0xDEAD_BEEF, 30, Duration::from_secs(2), OutputFormat::Png, Container::Mkv),
-        ("beams_warmup", "beams", 0xC0FFEE00, 60, Duration::from_secs(1), OutputFormat::Png, Container::Mkv),
-        ("ripple_5s",    "ripple", 0x12345678, 30, Duration::from_secs(5), OutputFormat::Png, Container::Mkv),
-        ("cosmos_quick", "cosmos", 0xCAFEBABE, 30, Duration::from_secs(1), OutputFormat::Png, Container::Mkv),
-        ("storm_burst",  "storm",  0x0BADF00D, 60, Duration::from_secs(2), OutputFormat::Png, Container::Mkv),
-        ("raw_dump_byte_eq", "beams", 0xABCDEF01, 30, Duration::from_millis(500), OutputFormat::Raw, Container::Mkv),
+        ("beams_steady", "beams", 0xDEAD_BEEF, 30, Duration::from_secs(2), 64, 64, OutputFormat::Png, Container::Mkv),
+        ("beams_warmup", "beams", 0xC0FFEE00, 60, Duration::from_secs(1), 64, 64, OutputFormat::Png, Container::Mkv),
+        ("ripple_5s",    "ripple", 0x12345678, 30, Duration::from_secs(5), 64, 64, OutputFormat::Png, Container::Mkv),
+        ("cosmos_quick", "cosmos", 0xCAFEBABE, 30, Duration::from_secs(1), 64, 64, OutputFormat::Png, Container::Mkv),
+        ("storm_burst",  "storm",  0x0BADF00D, 60, Duration::from_secs(2), 64, 64, OutputFormat::Png, Container::Mkv),
+        // Scenario 6 uses small dims to keep baseline under GitHub's 100MB cap
+        // (the cell renderer expands small grids to ~960x960 internally).
+        ("raw_dump_byte_eq", "beams", 0xABCDEF01, 30, Duration::from_secs(1), 16, 16, OutputFormat::Raw, Container::Mkv),
     ]
 }
 
-fn make_job(scenario: &str, effect: &str, seed: u64, fps: u32, dur: Duration, fmt: OutputFormat, container: Container, baseline: &std::path::Path, out: &std::path::Path) -> (RenderJob, EncodeBackend) {
+#[allow(clippy::too_many_arguments)]
+fn make_job(scenario: &str, effect: &str, seed: u64, fps: u32, dur: Duration, w: u32, h: u32, fmt: OutputFormat, container: Container, baseline: &std::path::Path, out: &std::path::Path) -> (RenderJob, EncodeBackend) {
     let plugin = plugin_path(effect);
-    let mut job = RenderJob {
+    let job = RenderJob {
         effect: effect.into(),
         plugin_path: Some(plugin),
         seed,
         fps,
         duration: dur,
-        width: 64,
-        height: 64,
+        width: w,
+        height: h,
         output: out.to_path_buf(),
         cols: None,
         rows: None,
@@ -103,7 +108,7 @@ fn all_six_snapshots_match_baseline() {
     let baseline_dir = tmp.path().join("baselines");
     std::fs::create_dir_all(&baseline_dir).expect("baselines");
 
-    for (scenario, effect, seed, fps, dur, fmt, container) in six_scenarios() {
+    for (scenario, effect, seed, fps, dur, w, h, fmt, container) in six_scenarios() {
         let so = plugin_path(effect);
         if skip_if_missing(&so) {
             continue;
@@ -118,14 +123,14 @@ fn all_six_snapshots_match_baseline() {
 
         // Phase 1: write the baseline (idempotent; fresh tmp so always).
         {
-            let (job, backend) = make_job(scenario, effect, seed, fps, dur, fmt, container, &baseline_dir, &out);
+            let (job, backend) = make_job(scenario, effect, seed, fps, dur, w, h, fmt, container, &baseline_dir, &out);
             let mut job_with_update = job.clone();
             job_with_update.update_baselines = true;
             run_pipeline(&job_with_update, backend).expect("update pipeline");
         }
 
         // Phase 2: re-render and compare — must MATCH.
-        let (job, backend) = make_job(scenario, effect, seed, fps, dur, fmt, container, &baseline_dir, &out);
+        let (job, backend) = make_job(scenario, effect, seed, fps, dur, w, h, fmt, container, &baseline_dir, &out);
         let result = run_pipeline(&job, backend).expect("compare pipeline");
         match &result.snapshot {
             SnapshotOutcome::Matched { path } => {

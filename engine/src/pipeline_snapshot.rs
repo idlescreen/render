@@ -43,7 +43,7 @@ pub fn baseline_path_for(job: &RenderJob) -> Option<PathBuf> {
 
 /// Derive a stable scenario name from job fields (effect + seed + duration).
 fn scenario_name(job: &RenderJob) -> String {
-    let mut s = String::from(job.effect.clone());
+    let mut s = job.effect.clone();
     s.push_str(&format!("_seed{:016x}", job.seed));
     let secs = job.duration.as_secs_f64();
     if secs.fract() == 0.0 {

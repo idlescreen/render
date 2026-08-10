@@ -16,9 +16,10 @@ impl PixelFormat {
 }
 
 /// Output family for a render job (added Sprint 02).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum OutputFormat {
     /// MP4 / MKV video (AV1 default, H.264 via `--format mp4 --container mp4`).
+    #[default]
     Mp4,
     /// One PNG per frame (directory).
     Png,
@@ -26,25 +27,14 @@ pub enum OutputFormat {
     Raw,
 }
 
-impl Default for OutputFormat {
-    fn default() -> Self {
-        Self::Mp4
-    }
-}
-
 /// Container for video outputs (only meaningful when [`OutputFormat::Mp4`]).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Container {
     /// Matroska (default; supports AV1, H.264).
+    #[default]
     Mkv,
     /// ISOBMFF MP4 (H.264 default; AV1 also supported in modern ffmpeg).
     Mp4,
-}
-
-impl Default for Container {
-    fn default() -> Self {
-        Self::Mkv
-    }
 }
 
 /// Fully validated offline render request.
