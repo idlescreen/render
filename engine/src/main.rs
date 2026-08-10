@@ -72,6 +72,14 @@ fn main() -> ExitCode {
                     eprintln!("snapshot: mismatch at {} ({})", path.display(), reason);
                     return ExitCode::from(4);
                 }
+                SnapshotOutcome::Refused { path, reason } => {
+                    eprintln!(
+                        "snapshot: refused to update baseline at {} — {}",
+                        path.display(),
+                        reason
+                    );
+                    return ExitCode::from(1);
+                }
             }
             ExitCode::SUCCESS
         }

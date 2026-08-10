@@ -116,7 +116,8 @@ pub struct Args {
     #[arg(long)]
     pub baseline_dir: Option<PathBuf>,
 
-    /// Overwrite baseline files instead of comparing (dev only).
+    /// Overwrite baseline files instead of comparing (dev only). Inert unless
+    /// `RENDER_FORCE_UPDATE_BASELINES=1` is set in the environment.
     #[arg(long)]
     pub update_baselines: bool,
 

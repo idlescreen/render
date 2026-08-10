@@ -104,6 +104,8 @@ fn make_job(scenario: &str, effect: &str, seed: u64, fps: u32, dur: Duration, w:
 fn all_six_snapshots_match_baseline() {
     // Permit loading bare .so plugins without a manifest during test runs.
     std::env::set_var("IDLE_ALLOW_UNSIGNED_PLUGINS", "1");
+    // F7: authorize baseline overwrite for the seeding phase.
+    std::env::set_var("RENDER_FORCE_UPDATE_BASELINES", "1");
     let tmp = tempdir().expect("tmp");
     let baseline_dir = tmp.path().join("baselines");
     std::fs::create_dir_all(&baseline_dir).expect("baselines");
