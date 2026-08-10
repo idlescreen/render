@@ -13,6 +13,7 @@ pub mod job_spec;
 pub mod models;
 pub mod paths;
 pub mod pipeline;
+pub mod png_writer;
 pub mod segment;
 
 pub use duration::parse_duration_secs;
@@ -22,6 +23,7 @@ pub use error::RenderError;
 pub use job_spec::JobSpec;
 pub use models::RenderJob;
 pub use pipeline::{run_pipeline, PipelineResult};
+pub use png_writer::{encode_bgra_frame_to_png, encode_bgra_frame_to_png_result};
 
 #[cfg(test)]
 mod proptests;
