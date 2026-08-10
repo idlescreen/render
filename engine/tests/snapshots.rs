@@ -122,11 +122,16 @@ fn all_six_snapshots_match_baseline() {
         };
 
         // Phase 1: write the baseline (idempotent; fresh tmp so always).
+        // F7: --update-baselines is gated behind RENDER_FORCE_UPDATE_BASELINES=1.
+        // CI sets this env var in the seed step; tests set it explicitly here.
         {
             let (job, backend) = make_job(scenario, effect, seed, fps, dur, w, h, fmt, container, &baseline_dir, &out);
             let mut job_with_update = job.clone();
             job_with_update.update_baselines = true;
-            run_pipeline(&job_with_update, backend).expect("update pipeline");
+            std::env::set_var("RENDER_FORCE_UPDATE_BASELINES", "1");
+            let result = run_pipeline(&job_with_update, backend);
+            std::env::remove_var("RENDER_FORCE_UPDATE_BASELINES");
+            result.expect("update pipeline");
         }
 
         // Phase 2: re-render and compare — must MATCH.
