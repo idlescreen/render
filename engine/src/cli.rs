@@ -183,12 +183,17 @@ impl Args {
             Some(s) => Some(parse_duration_secs(&s)?),
             None => None,
         };
-        // `--raw` and `--stdout-raw` both pin format to Raw.
+        // `--stdout-raw` always streams with the GBRI header; `--raw` (legacy)
+        // is a synonym for `--format raw --stdout-raw`. The `format` field
+        // itself is just `--format {png,mp4,raw}` — `raw` means raw-BGRA-to-file.
         let format: OutputFormat = if self.raw || self.stdout_raw {
             OutputFormat::Raw
         } else {
             self.format.into()
         };
+        // `format == Raw` becomes RawDump (file); `--stdout-raw` upgrades it
+        // to StdoutRaw so the 16-byte header is emitted.
+        let stdout_raw = self.stdout_raw;
         let job = RenderJob {
             effect,
             plugin_path: self.plugin_path,
@@ -219,7 +224,8 @@ impl Args {
         job.validate()?;
         let backend = match job.format {
             OutputFormat::Png => EncodeBackend::PngSequence,
-            OutputFormat::Raw => EncodeBackend::StdoutRaw,
+            OutputFormat::Raw if stdout_raw => EncodeBackend::StdoutRaw,
+            OutputFormat::Raw => EncodeBackend::RawDump,
             OutputFormat::Mp4 if job.dry_run => EncodeBackend::RawDump,
             OutputFormat::Mp4 if matches!(job.container, Container::Mp4) => {
                 EncodeBackend::FfmpegH264

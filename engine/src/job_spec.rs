@@ -141,6 +141,8 @@ impl JobSpec {
             Some(s) => parse_container(s)?,
             None => Container::Mkv,
         };
+        // `raw` in JSON also toggles the stdout-raw flag (legacy alias).
+        let stdout_raw = self.raw;
         let job = RenderJob {
             effect: self.effect,
             plugin_path: self.plugin_path,
@@ -171,7 +173,8 @@ impl JobSpec {
         job.validate()?;
         let backend = match job.format {
             OutputFormat::Png => EncodeBackend::PngSequence,
-            OutputFormat::Raw => EncodeBackend::StdoutRaw,
+            OutputFormat::Raw if stdout_raw => EncodeBackend::StdoutRaw,
+            OutputFormat::Raw => EncodeBackend::RawDump,
             OutputFormat::Mp4 if job.dry_run => EncodeBackend::RawDump,
             OutputFormat::Mp4 if matches!(job.container, Container::Mp4) => EncodeBackend::FfmpegH264,
             OutputFormat::Mp4 => EncodeBackend::FfmpegAv1,
