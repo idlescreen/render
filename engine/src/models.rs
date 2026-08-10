@@ -128,6 +128,14 @@ impl RenderJob {
         if self.crf > 63 {
             return Err(RenderError::Job("crf must be 0..=63".into()));
         }
+        if self.update_baselines
+            && std::env::var("RENDER_FORCE_UPDATE_BASELINES").as_deref() != Ok("1")
+        {
+            return Err(RenderError::Job(
+                "--update-baselines requires RENDER_FORCE_UPDATE_BASELINES=1 in the environment"
+                    .into(),
+            ));
+        }
         deny_parent_dirs(&self.output, "output")?;
         if let Some(p) = &self.plugin_path {
             deny_parent_dirs(p, "plugin_path")?;
@@ -206,6 +214,30 @@ mod tests {
         let mut j = sample();
         j.width = 0;
         assert!(j.validate().is_err());
+    }
+
+    #[test]
+    fn update_baselines_requires_env_var() {
+        // F7 foot-gun: --update-baselines must fail-closed unless
+        // RENDER_FORCE_UPDATE_BASELINES=1 is set in the environment.
+        let mut j = sample();
+        j.update_baselines = true;
+
+        // No env var set.
+        std::env::remove_var("RENDER_FORCE_UPDATE_BASELINES");
+        assert!(j.validate().is_err(), "must reject without env var");
+
+        // Env var set to something other than "1".
+        std::env::set_var("RENDER_FORCE_UPDATE_BASELINES", "true");
+        assert!(j.validate().is_err(), "must reject when env var is not \"1\"");
+        std::env::set_var("RENDER_FORCE_UPDATE_BASELINES", "");
+        assert!(j.validate().is_err(), "must reject when env var is empty");
+        std::env::remove_var("RENDER_FORCE_UPDATE_BASELINES");
+
+        // Env var set to "1".
+        std::env::set_var("RENDER_FORCE_UPDATE_BASELINES", "1");
+        assert!(j.validate().is_ok(), "must accept when env var is exactly \"1\"");
+        std::env::remove_var("RENDER_FORCE_UPDATE_BASELINES");
     }
 
     #[test]

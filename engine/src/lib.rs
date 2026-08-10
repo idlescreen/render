@@ -8,6 +8,7 @@ pub mod cli;
 pub mod duration;
 pub mod encode;
 pub mod encode_select;
+pub mod encoder_probe;
 pub mod error;
 pub mod job_spec;
 pub mod models;
