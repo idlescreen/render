@@ -13,6 +13,7 @@ pub mod job_spec;
 pub mod models;
 pub mod paths;
 pub mod pipeline;
+pub mod pipeline_snapshot;
 pub mod png_writer;
 pub mod segment;
 pub mod snapshot;
