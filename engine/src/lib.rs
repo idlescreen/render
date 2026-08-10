@@ -15,6 +15,7 @@ pub mod paths;
 pub mod pipeline;
 pub mod png_writer;
 pub mod segment;
+pub mod snapshot;
 
 pub use duration::parse_duration_secs;
 pub use encode::{encode_raw_bgra_to_file, EncodeBackend, EncodeSettings};
