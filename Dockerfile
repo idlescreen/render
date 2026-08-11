@@ -1,13 +1,20 @@
-# Multi-stage Alpine build for render (headless export tooling).
+# Status: placeholder — no published image yet.
+#
+# A full build requires the sibling `idle/` workspace as a path dependency
+# (`idle-runner`, `idle-api`, `crates/wayland-idle`, `crates/wayland-present`,
+# `crates/idle-dbus`, `crates/idle-ipc`, `crates/idle-upscaler`). The CI
+# release matrix in `.github/workflows/ci.yml` builds those natively; the
+# container pipeline is deferred until Sprint 05 H1 (see SPRINT.md).
+#
+# `unraid/render.xml` is the Community Apps template that points at this
+# (currently non-existent) image.
+#
 FROM rust:1-alpine AS build
 RUN apk add --no-cache musl-dev pkgconfig freetype-dev fontconfig-dev \
     dbus-dev wayland-dev libxkbcommon-dev openssl-dev
 WORKDIR /src
-# Expect build context with idle-core sibling via compose or pre-copied tree.
 COPY . /src/render
-# Placeholder: full image builds require idle-core path dep; use CI matrix instead for release.
-WORKDIR /src/render
-RUN echo "Use GitHub Actions for linked idle-core builds" > /build-note
+RUN echo "Image not yet published; see SPRINT.md Sprint 05 H1" > /build-note
 
 FROM alpine:3.20
 RUN apk add --no-cache ffmpeg ca-certificates
