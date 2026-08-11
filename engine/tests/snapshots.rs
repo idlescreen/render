@@ -217,6 +217,53 @@ fn args_translation_picks_correct_backend() {
     let _ = baseline_path_for;
 }
 
+/// K4 (PROBE.md) — exit codes from the binary. main.rs returns:
+/// 0 = success, 1 = pipeline error, 2 = arg-parse error, 3 = missing
+/// baseline, 4 = snapshot mismatch. A regression that masks any of
+/// these (e.g. by returning 0 on a failed parse) would silently break
+/// CI gating; this test pins each path.
+#[test]
+fn binary_exit_codes_match_documented_contract() {
+    let so = plugin_path("beams");
+    let plugin_available = so.is_file();
+    if !plugin_available {
+        eprintln!("skipping: beams plugin not built (run `cargo build -p beams` first)");
+        return;
+    }
+
+    // exit 2: arg-parse error. The contract: `render --bogus-flag` returns 2.
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_render"))
+        .arg("--this-flag-does-not-exist")
+        .stdin(std::process::Stdio::null())
+        .output()
+        .expect("spawn render");
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "arg-parse error must exit 2 (got {:?})",
+        out.status.code()
+    );
+
+    // exit 0: dry-run with valid args (no real encode work; just pipeline shape).
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_render"))
+        .env("IDLE_ALLOW_UNSIGNED_PLUGINS", "1")
+        .arg("--plugin-path").arg(&so)
+        .arg("-e").arg("beams")
+        .arg("--duration").arg("1s")
+        .arg("--dry-run")
+        .arg("-o").arg("/tmp/render-exit-test.mkv")
+        .stdin(std::process::Stdio::null())
+        .output()
+        .expect("spawn render");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "dry-run with valid args must exit 0 (got {:?}, stderr: {})",
+        out.status.code(),
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
 fn bin_cli_check() -> String {
     // Build args using clap::Parser::try_parse_from with a fake argv.
     let args = <Args as clap::Parser>::try_parse_from([
