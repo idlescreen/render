@@ -1,2 +1,5 @@
 [toolchain]
-channel = "stable"
+# M-A2: pin to the same channel as the rest of the workspace (1.96.0).
+# MSRV 1.75.0 is enforced by CI for back-compat coverage but is NOT the
+# default toolchain.
+channel = "1.96.0"
