@@ -29,32 +29,117 @@ pub fn plugin_path(name: &str) -> PathBuf {
 /// Return true if the plugin is missing (skip test).
 pub fn skip_if_missing(p: &Path) -> bool {
     if !p.is_file() {
-        eprintln!("skipping snapshot test: plugin not built at {}", p.display());
+        eprintln!(
+            "skipping snapshot test: plugin not built at {}",
+            p.display()
+        );
         true
     } else {
         false
     }
 }
 
-pub type Scenario = (/*name*/ &'static str, /*effect*/ &'static str, /*seed*/ u64, /*fps*/ u32, /*dur*/ Duration, /*w*/ u32, /*h*/ u32, /*format*/ OutputFormat, /*container*/ Container);
+pub type Scenario = (
+    /*name*/ &'static str,
+    /*effect*/ &'static str,
+    /*seed*/ u64,
+    /*fps*/ u32,
+    /*dur*/ Duration,
+    /*w*/ u32,
+    /*h*/ u32,
+    /*format*/ OutputFormat,
+    /*container*/ Container,
+);
 
 /// Build the canonical 6 scenarios (per Sprint 02 spec table).
 pub fn six_scenarios() -> Vec<Scenario> {
     vec![
-        ("beams_steady", "beams", 0xDEAD_BEEF, 30, Duration::from_secs(2), 64, 64, OutputFormat::Png, Container::Mkv),
-        ("beams_warmup", "beams", 0xC0FFEE00, 60, Duration::from_secs(1), 64, 64, OutputFormat::Png, Container::Mkv),
-        ("ripple_5s",    "ripple", 0x12345678, 30, Duration::from_secs(5), 64, 64, OutputFormat::Png, Container::Mkv),
-        ("cosmos_quick", "cosmos", 0xCAFEBABE, 30, Duration::from_secs(1), 64, 64, OutputFormat::Png, Container::Mkv),
-        ("storm_burst",  "storm",  0x0BADF00D, 60, Duration::from_secs(2), 64, 64, OutputFormat::Png, Container::Mkv),
+        (
+            "beams_steady",
+            "beams",
+            0xDEAD_BEEF,
+            30,
+            Duration::from_secs(2),
+            64,
+            64,
+            OutputFormat::Png,
+            Container::Mkv,
+        ),
+        (
+            "beams_warmup",
+            "beams",
+            0xC0FFEE00,
+            60,
+            Duration::from_secs(1),
+            64,
+            64,
+            OutputFormat::Png,
+            Container::Mkv,
+        ),
+        (
+            "ripple_5s",
+            "ripple",
+            0x12345678,
+            30,
+            Duration::from_secs(5),
+            64,
+            64,
+            OutputFormat::Png,
+            Container::Mkv,
+        ),
+        (
+            "cosmos_quick",
+            "cosmos",
+            0xCAFEBABE,
+            30,
+            Duration::from_secs(1),
+            64,
+            64,
+            OutputFormat::Png,
+            Container::Mkv,
+        ),
+        (
+            "storm_burst",
+            "storm",
+            0x0BADF00D,
+            60,
+            Duration::from_secs(2),
+            64,
+            64,
+            OutputFormat::Png,
+            Container::Mkv,
+        ),
         // Scenario 6 uses small dims to keep baseline under GitHub's 100MB cap
         // (the cell renderer expands small grids to ~960x960 internally).
-        ("raw_dump_byte_eq", "beams", 0xABCDEF01, 30, Duration::from_secs(1), 16, 16, OutputFormat::Raw, Container::Mkv),
+        (
+            "raw_dump_byte_eq",
+            "beams",
+            0xABCDEF01,
+            30,
+            Duration::from_secs(1),
+            16,
+            16,
+            OutputFormat::Raw,
+            Container::Mkv,
+        ),
     ]
 }
 
 /// Build a RenderJob and pick the correct encode backend for a scenario.
 #[allow(clippy::too_many_arguments)]
-pub fn make_job(scenario: &str, effect: &str, seed: u64, fps: u32, dur: Duration, w: u32, h: u32, fmt: OutputFormat, container: Container, baseline: &std::path::Path, out: &std::path::Path) -> (RenderJob, EncodeBackend) {
+pub fn make_job(
+    scenario: &str,
+    effect: &str,
+    seed: u64,
+    fps: u32,
+    dur: Duration,
+    w: u32,
+    h: u32,
+    fmt: OutputFormat,
+    container: Container,
+    baseline: &std::path::Path,
+    out: &std::path::Path,
+) -> (RenderJob, EncodeBackend) {
     let plugin = plugin_path(effect);
     let job = RenderJob {
         effect: effect.into(),

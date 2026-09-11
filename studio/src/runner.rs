@@ -44,9 +44,7 @@ fn resolve_render_bin() -> Result<PathBuf, StudioError> {
 /// Run one job via `render --job-file <spec.json>`.
 pub fn run_job(job: &StudioJob) -> Result<String, StudioError> {
     let bin = resolve_render_bin()?;
-    let job_path = job
-        .write_job_file()
-        .map_err(StudioError::Render)?;
+    let job_path = job.write_job_file().map_err(StudioError::Render)?;
     let output = Command::new(&bin)
         .arg("--job-file")
         .arg(&job_path)

@@ -62,10 +62,17 @@ fn main() -> ExitCode {
             );
             match &r.snapshot {
                 SnapshotOutcome::Skipped => {}
-                SnapshotOutcome::Matched { path } => eprintln!("snapshot: matched {}", path.display()),
-                SnapshotOutcome::Updated { path } => eprintln!("snapshot: updated {}", path.display()),
+                SnapshotOutcome::Matched { path } => {
+                    eprintln!("snapshot: matched {}", path.display())
+                }
+                SnapshotOutcome::Updated { path } => {
+                    eprintln!("snapshot: updated {}", path.display())
+                }
                 SnapshotOutcome::MissingBaseline { path } => {
-                    eprintln!("snapshot: missing baseline at {} (run --update-baselines to seed)", path.display());
+                    eprintln!(
+                        "snapshot: missing baseline at {} (run --update-baselines to seed)",
+                        path.display()
+                    );
                     return ExitCode::from(3);
                 }
                 SnapshotOutcome::Mismatched { path, reason } => {

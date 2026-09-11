@@ -71,7 +71,9 @@ fn last_png_in_dir(dir: &std::path::Path) -> Result<std::path::PathBuf, RenderEr
                 None => true,
                 Some(cur) => p.file_name() > cur.file_name(),
             };
-            if take { best = Some(p); }
+            if take {
+                best = Some(p);
+            }
         }
     }
     best.ok_or_else(|| RenderError::Job("snapshot: no PNG files in output dir".into()))
@@ -86,17 +88,30 @@ pub fn evaluate(job: &RenderJob, current: &std::path::Path) -> SnapshotOutcome {
     if job.update_baselines {
         let bytes = match snapshot::read_baseline(current) {
             Ok(b) => b,
-            Err(e) => return SnapshotOutcome::Mismatched { path: baseline, reason: format!("read current: {e}") },
+            Err(e) => {
+                return SnapshotOutcome::Mismatched {
+                    path: baseline,
+                    reason: format!("read current: {e}"),
+                }
+            }
         };
         if let Err(e) = snapshot::write_baseline(&baseline, &bytes) {
-            return SnapshotOutcome::Mismatched { path: baseline, reason: format!("write baseline: {e}") };
+            return SnapshotOutcome::Mismatched {
+                path: baseline,
+                reason: format!("write baseline: {e}"),
+            };
         }
         return SnapshotOutcome::Updated { path: baseline };
     }
     match snapshot::compare(current, &baseline) {
         Ok(()) => SnapshotOutcome::Matched { path: baseline },
-        Err(snapshot::SnapshotMismatch::MissingBaseline(_)) => SnapshotOutcome::MissingBaseline { path: baseline },
-        Err(e) => SnapshotOutcome::Mismatched { path: baseline, reason: e.to_string() },
+        Err(snapshot::SnapshotMismatch::MissingBaseline(_)) => {
+            SnapshotOutcome::MissingBaseline { path: baseline }
+        }
+        Err(e) => SnapshotOutcome::Mismatched {
+            path: baseline,
+            reason: e.to_string(),
+        },
     }
 }
 
@@ -125,14 +140,31 @@ mod tests {
 
     fn job(format: OutputFormat, container: Container, seed: u64) -> RenderJob {
         RenderJob {
-            effect: "beams".into(), plugin_path: None, seed,
-            fps: 30, duration: Duration::from_secs(2),
-            width: 64, height: 64, output: PathBuf::from("/tmp/unused.mkv"),
-            cols: None, rows: None, dry_run: false, segment: None,
-            audio: None, resume: false, crf: 35, preset: None,
-            encoder: None, prefer_hw: true, gpu_upscale: true,
-            format, container, baseline_dir: None,
-            snapshot_last_only: true, update_baselines: false, cpu_raster: true,
+            effect: "beams".into(),
+            plugin_path: None,
+            seed,
+            fps: 30,
+            duration: Duration::from_secs(2),
+            width: 64,
+            height: 64,
+            output: PathBuf::from("/tmp/unused.mkv"),
+            cols: None,
+            rows: None,
+            dry_run: false,
+            segment: None,
+            audio: None,
+            resume: false,
+            crf: 35,
+            preset: None,
+            encoder: None,
+            prefer_hw: true,
+            gpu_upscale: true,
+            format,
+            container,
+            baseline_dir: None,
+            snapshot_last_only: true,
+            update_baselines: false,
+            cpu_raster: true,
         }
     }
 
@@ -146,16 +178,25 @@ mod tests {
 
         let mut j2 = job(OutputFormat::Mp4, Container::Mp4, 0xC0FFEE00);
         j2.baseline_dir = Some(PathBuf::from("/tmp/baselines"));
-        assert!(baseline_path_for(&j2).unwrap().to_string_lossy().ends_with(".last.mp4"));
+        assert!(baseline_path_for(&j2)
+            .unwrap()
+            .to_string_lossy()
+            .ends_with(".last.mp4"));
 
         let mut j3 = job(OutputFormat::Raw, Container::Mkv, 0x12345678);
         j3.baseline_dir = Some(PathBuf::from("/tmp/baselines"));
-        assert!(baseline_path_for(&j3).unwrap().to_string_lossy().ends_with(".last.bgra"));
+        assert!(baseline_path_for(&j3)
+            .unwrap()
+            .to_string_lossy()
+            .ends_with(".last.bgra"));
     }
 
     #[test]
     fn evaluate_skipped_when_no_baseline_dir() {
         let j = job(OutputFormat::Png, Container::Mkv, 1);
-        assert!(matches!(evaluate(&j, Path::new("/tmp/x.png")), SnapshotOutcome::Skipped));
+        assert!(matches!(
+            evaluate(&j, Path::new("/tmp/x.png")),
+            SnapshotOutcome::Skipped
+        ));
     }
 }

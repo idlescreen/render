@@ -229,14 +229,20 @@ mod tests {
 
         // Env var set to something other than "1".
         std::env::set_var("RENDER_FORCE_UPDATE_BASELINES", "true");
-        assert!(j.validate().is_err(), "must reject when env var is not \"1\"");
+        assert!(
+            j.validate().is_err(),
+            "must reject when env var is not \"1\""
+        );
         std::env::set_var("RENDER_FORCE_UPDATE_BASELINES", "");
         assert!(j.validate().is_err(), "must reject when env var is empty");
         std::env::remove_var("RENDER_FORCE_UPDATE_BASELINES");
 
         // Env var set to "1".
         std::env::set_var("RENDER_FORCE_UPDATE_BASELINES", "1");
-        assert!(j.validate().is_ok(), "must accept when env var is exactly \"1\"");
+        assert!(
+            j.validate().is_ok(),
+            "must accept when env var is exactly \"1\""
+        );
         std::env::remove_var("RENDER_FORCE_UPDATE_BASELINES");
     }
 

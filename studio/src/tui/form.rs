@@ -3,8 +3,7 @@ use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub const EFFECTS: &[&str] = &[
-    "beams", "bursts", "chaos", "cosmos", "glyphs", "gnats", "hearth", "radar", "ripple",
-    "storm",
+    "beams", "bursts", "chaos", "cosmos", "glyphs", "gnats", "hearth", "radar", "ripple", "storm",
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

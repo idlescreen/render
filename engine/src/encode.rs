@@ -73,7 +73,9 @@ where
                 Some(name) => name.clone(),
                 None => detect_h264_encoder(settings.prefer_hw)?,
             };
-            write_ffmpeg_pipe(settings, &encoder, width, height, fps, output, frames, false)
+            write_ffmpeg_pipe(
+                settings, &encoder, width, height, fps, output, frames, false,
+            )
         }
     }
 }
@@ -106,12 +108,7 @@ where
 
 /// Stream raw BGRA + 16-byte header to stdout. Header: width|height|fps|magic LE u32s;
 /// magic `0x4942_5247` == "GBRI".
-fn write_stdout_raw<I, B>(
-    width: u32,
-    height: u32,
-    fps: u32,
-    frames: I,
-) -> Result<u64, RenderError>
+fn write_stdout_raw<I, B>(width: u32, height: u32, fps: u32, frames: I) -> Result<u64, RenderError>
 where
     I: Iterator<Item = Result<B, RenderError>>,
     B: std::ops::Deref,
@@ -132,10 +129,11 @@ where
     let mut n = 0u64;
     for frame in frames {
         let buf = frame?;
-        out.write_all(frame_bytes(&buf)).map_err(|source| RenderError::Io {
-            path: p.clone(),
-            source,
-        })?;
+        out.write_all(frame_bytes(&buf))
+            .map_err(|source| RenderError::Io {
+                path: p.clone(),
+                source,
+            })?;
         n += 1;
     }
     if n == 0 {
@@ -193,33 +191,75 @@ where
     B: std::ops::Deref,
     B::Target: AsRef<[u8]>,
 {
-    tracing::info!(encoder, hw = is_hardware_encoder(encoder), codec = if av1 {"av1"}else{"h264"}, "encode backend");
+    tracing::info!(
+        encoder,
+        hw = is_hardware_encoder(encoder),
+        codec = if av1 { "av1" } else { "h264" },
+        "encode backend"
+    );
     let mut args: Vec<String> = [
-        "-hide_banner", "-loglevel", "error", "-y", "-f", "rawvideo",
-        "-pix_fmt", "bgra", "-s", &format!("{width}x{height}"),
-        "-r", &fps.to_string(), "-i", "-", "-an", "-c:v", encoder,
-    ].iter().map(|s| s.to_string()).collect();
-    if av1 { push_quality_args(&mut args, encoder, settings); }
-    else { push_h264_quality_args(&mut args, encoder, settings); }
-    args.push("-pix_fmt".into()); args.push("yuv420p".into());
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-y",
+        "-f",
+        "rawvideo",
+        "-pix_fmt",
+        "bgra",
+        "-s",
+        &format!("{width}x{height}"),
+        "-r",
+        &fps.to_string(),
+        "-i",
+        "-",
+        "-an",
+        "-c:v",
+        encoder,
+    ]
+    .iter()
+    .map(|s| s.to_string())
+    .collect();
+    if av1 {
+        push_quality_args(&mut args, encoder, settings);
+    } else {
+        push_h264_quality_args(&mut args, encoder, settings);
+    }
+    args.push("-pix_fmt".into());
+    args.push("yuv420p".into());
     args.push(output.display().to_string());
 
     let mut child = Command::new("ffmpeg")
-        .args(&args).stdin(Stdio::piped()).stdout(Stdio::null()).stderr(Stdio::piped())
-        .spawn().map_err(|e| RenderError::Ffmpeg(e.to_string()))?;
-    let mut stdin = child.stdin.take().ok_or_else(|| RenderError::Ffmpeg("stdin missing".into()))?;
+        .args(&args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| RenderError::Ffmpeg(e.to_string()))?;
+    let mut stdin = child
+        .stdin
+        .take()
+        .ok_or_else(|| RenderError::Ffmpeg("stdin missing".into()))?;
     let mut n = 0u64;
     for frame in frames {
-        if stdin.write_all(frame_bytes(&frame?)).is_err() { break; }
+        if stdin.write_all(frame_bytes(&frame?)).is_err() {
+            break;
+        }
         n += 1;
     }
     drop(stdin);
-    let out = child.wait_with_output().map_err(|e| RenderError::Ffmpeg(e.to_string()))?;
+    let out = child
+        .wait_with_output()
+        .map_err(|e| RenderError::Ffmpeg(e.to_string()))?;
     if !out.status.success() {
-        return Err(RenderError::Ffmpeg(format!("exit {:?} encoder={encoder}: {}",
-            out.status.code(), String::from_utf8_lossy(&out.stderr))));
+        return Err(RenderError::Ffmpeg(format!(
+            "exit {:?} encoder={encoder}: {}",
+            out.status.code(),
+            String::from_utf8_lossy(&out.stderr)
+        )));
     }
-    if n == 0 { return Err(RenderError::EmptyOutput); }
+    if n == 0 {
+        return Err(RenderError::EmptyOutput);
+    }
     Ok(n)
 }
 
@@ -238,4 +278,3 @@ mod tests {
         assert_eq!(&bytes, b"GBRI");
     }
 }
-

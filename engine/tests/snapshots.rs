@@ -40,7 +40,19 @@ fn all_six_snapshots_match_baseline() {
         // F7: --update-baselines is gated behind RENDER_FORCE_UPDATE_BASELINES=1.
         // CI sets this env var in the seed step; tests set it explicitly here.
         {
-            let (job, backend) = make_job(scenario, effect, seed, fps, dur, w, h, fmt, container, &baseline_dir, &out);
+            let (job, backend) = make_job(
+                scenario,
+                effect,
+                seed,
+                fps,
+                dur,
+                w,
+                h,
+                fmt,
+                container,
+                &baseline_dir,
+                &out,
+            );
             let mut job_with_update = job.clone();
             job_with_update.update_baselines = true;
             std::env::set_var("RENDER_FORCE_UPDATE_BASELINES", "1");
@@ -50,11 +62,27 @@ fn all_six_snapshots_match_baseline() {
         }
 
         // Phase 2: re-render and compare — must MATCH.
-        let (job, backend) = make_job(scenario, effect, seed, fps, dur, w, h, fmt, container, &baseline_dir, &out);
+        let (job, backend) = make_job(
+            scenario,
+            effect,
+            seed,
+            fps,
+            dur,
+            w,
+            h,
+            fmt,
+            container,
+            &baseline_dir,
+            &out,
+        );
         let result = run_pipeline(&job, backend).expect("compare pipeline");
         match &result.snapshot {
             SnapshotOutcome::Matched { path } => {
-                assert!(path.is_file(), "scenario {scenario}: baseline should exist at {}", path.display());
+                assert!(
+                    path.is_file(),
+                    "scenario {scenario}: baseline should exist at {}",
+                    path.display()
+                );
             }
             other => panic!("scenario {scenario}: expected Matched, got {other:?}"),
         }
@@ -117,10 +145,22 @@ fn mp4_container_uses_h264() {
         (OutputFormat::Png, _) => EncodeBackend::PngSequence,
         (OutputFormat::Raw, _) => EncodeBackend::RawDump,
     };
-    assert!(matches!(backend_for(OutputFormat::Mp4, Container::Mp4), EncodeBackend::FfmpegH264));
-    assert!(matches!(backend_for(OutputFormat::Mp4, Container::Mkv), EncodeBackend::FfmpegAv1));
-    assert!(matches!(backend_for(OutputFormat::Png, Container::Mkv), EncodeBackend::PngSequence));
-    assert!(matches!(backend_for(OutputFormat::Raw, Container::Mkv), EncodeBackend::RawDump));
+    assert!(matches!(
+        backend_for(OutputFormat::Mp4, Container::Mp4),
+        EncodeBackend::FfmpegH264
+    ));
+    assert!(matches!(
+        backend_for(OutputFormat::Mp4, Container::Mkv),
+        EncodeBackend::FfmpegAv1
+    ));
+    assert!(matches!(
+        backend_for(OutputFormat::Png, Container::Mkv),
+        EncodeBackend::PngSequence
+    ));
+    assert!(matches!(
+        backend_for(OutputFormat::Raw, Container::Mkv),
+        EncodeBackend::RawDump
+    ));
 }
 
 #[test]
@@ -162,11 +202,15 @@ fn binary_exit_codes_match_documented_contract() {
     // exit 0: dry-run with valid args (no real encode work; just pipeline shape).
     let out = std::process::Command::new(env!("CARGO_BIN_EXE_render"))
         .env("IDLE_ALLOW_UNSIGNED_PLUGINS", "1")
-        .arg("--plugin-path").arg(&so)
-        .arg("-e").arg("beams")
-        .arg("--duration").arg("1s")
+        .arg("--plugin-path")
+        .arg(&so)
+        .arg("-e")
+        .arg("beams")
+        .arg("--duration")
+        .arg("1s")
         .arg("--dry-run")
-        .arg("-o").arg("/tmp/render-exit-test.mkv")
+        .arg("-o")
+        .arg("/tmp/render-exit-test.mkv")
         .stdin(std::process::Stdio::null())
         .output()
         .expect("spawn render");

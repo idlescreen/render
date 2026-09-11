@@ -175,12 +175,18 @@ pub fn push_quality_args(args: &mut Vec<String>, encoder: &str, settings: &Encod
 pub fn push_h264_quality_args(args: &mut Vec<String>, encoder: &str, settings: &EncodeSettings) {
     let q = settings.crf.to_string();
     if encoder.contains("nvenc") {
-        args.push("-rc".into()); args.push("vbr".into()); args.push("-cq".into()); args.push(q);
-        args.push("-preset".into()); args.push(settings.preset.clone().unwrap_or_else(|| "p4".into()));
+        args.push("-rc".into());
+        args.push("vbr".into());
+        args.push("-cq".into());
+        args.push(q);
+        args.push("-preset".into());
+        args.push(settings.preset.clone().unwrap_or_else(|| "p4".into()));
     } else {
-        args.push("-crf".into()); args.push(q);
+        args.push("-crf".into());
+        args.push(q);
         if let Some(preset) = &settings.preset {
-            args.push("-preset".into()); args.push(preset.clone());
+            args.push("-preset".into());
+            args.push(preset.clone());
         }
     }
 }

@@ -23,7 +23,11 @@ pub fn draw_queue(
         .split(area);
 
     let title = Paragraph::new("IdleScreen Studio — Director (TUI)")
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
         .block(Block::default().borders(Borders::ALL));
     f.render_widget(title, chunks[0]);
 
@@ -79,7 +83,9 @@ pub fn draw_queue(
     );
 
     let help = Paragraph::new(Line::from(vec![
-        Span::raw("n new  j/k move  Enter run  r next  a all  d del  p re-pend  R reload  q quit  | "),
+        Span::raw(
+            "n new  j/k move  Enter run  r next  a all  d del  p re-pend  R reload  q quit  | ",
+        ),
         Span::raw(status_line),
     ]))
     .block(Block::default().borders(Borders::ALL));
@@ -98,7 +104,11 @@ pub fn draw_new_job(area: Rect, f: &mut ratatui::Frame<'_>, form: &NewJobForm, s
 
     f.render_widget(
         Paragraph::new("New export job")
-            .style(Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
+            .style(
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
+            )
             .block(Block::default().borders(Borders::ALL)),
         chunks[0],
     );
@@ -152,8 +162,7 @@ pub fn draw_new_job(area: Rect, f: &mut ratatui::Frame<'_>, form: &NewJobForm, s
     ));
 
     f.render_widget(
-        Paragraph::new(lines)
-            .block(Block::default().borders(Borders::ALL).title("Parameters")),
+        Paragraph::new(lines).block(Block::default().borders(Borders::ALL).title("Parameters")),
         chunks[1],
     );
 

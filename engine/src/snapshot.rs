@@ -16,7 +16,9 @@ pub enum SnapshotMismatch {
     MissingBaseline(String),
     #[error("baseline length {baseline} != current length {current}")]
     LengthMismatch { baseline: usize, current: usize },
-    #[error("pixel mismatch at byte {byte_offset}: baseline {baseline:#04x} vs current {current:#04x}")]
+    #[error(
+        "pixel mismatch at byte {byte_offset}: baseline {baseline:#04x} vs current {current:#04x}"
+    )]
     PixelMismatch {
         byte_offset: usize,
         baseline: u8,
@@ -118,10 +120,12 @@ fn decode_png_rgba(bytes: &[u8], path: &Path) -> Result<Vec<u8>, SnapshotMismatc
         source: std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()),
     })?;
     let mut buf = vec![0u8; reader.output_buffer_size()];
-    let info = reader.next_frame(&mut buf).map_err(|e| SnapshotMismatch::Io {
-        path: path.display().to_string(),
-        source: std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()),
-    })?;
+    let info = reader
+        .next_frame(&mut buf)
+        .map_err(|e| SnapshotMismatch::Io {
+            path: path.display().to_string(),
+            source: std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()),
+        })?;
     buf.truncate(info.buffer_size());
     Ok(buf)
 }

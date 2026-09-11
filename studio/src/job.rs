@@ -22,9 +22,7 @@ impl StudioJob {
     /// Write a temp job-file and return its path (caller deletes).
     pub fn write_job_file(&self) -> Result<PathBuf, String> {
         let path = std::env::temp_dir().join(format!("idle-studio-{}.json", self.id));
-        self.spec
-            .save_path(&path)
-            .map_err(|e| e.to_string())?;
+        self.spec.save_path(&path).map_err(|e| e.to_string())?;
         Ok(path)
     }
 }

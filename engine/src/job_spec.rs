@@ -72,12 +72,24 @@ pub struct JobSpec {
     pub cpu_raster: bool,
 }
 
-fn default_seed() -> u64 { 0x00C0_FFEE }
-fn default_fps() -> u32 { 30 }
-fn default_w() -> u32 { 1280 }
-fn default_h() -> u32 { 720 }
-fn default_crf() -> u8 { 35 }
-fn default_true() -> bool { true }
+fn default_seed() -> u64 {
+    0x00C0_FFEE
+}
+fn default_fps() -> u32 {
+    30
+}
+fn default_w() -> u32 {
+    1280
+}
+fn default_h() -> u32 {
+    720
+}
+fn default_crf() -> u8 {
+    35
+}
+fn default_true() -> bool {
+    true
+}
 
 fn parse_format(s: &str) -> Result<OutputFormat, RenderError> {
     Ok(match s.to_ascii_lowercase().as_str() {
@@ -101,9 +113,8 @@ impl JobSpec {
             path: path.to_path_buf(),
             source,
         })?;
-        serde_json::from_str(&raw).map_err(|e| {
-            RenderError::Job(format!("invalid job file {}: {e}", path.display()))
-        })
+        serde_json::from_str(&raw)
+            .map_err(|e| RenderError::Job(format!("invalid job file {}: {e}", path.display())))
     }
 
     pub fn save_path(&self, path: &Path) -> Result<(), RenderError> {
@@ -176,7 +187,9 @@ impl JobSpec {
             OutputFormat::Raw if stdout_raw => EncodeBackend::StdoutRaw,
             OutputFormat::Raw => EncodeBackend::RawDump,
             OutputFormat::Mp4 if job.dry_run => EncodeBackend::RawDump,
-            OutputFormat::Mp4 if matches!(job.container, Container::Mp4) => EncodeBackend::FfmpegH264,
+            OutputFormat::Mp4 if matches!(job.container, Container::Mp4) => {
+                EncodeBackend::FfmpegH264
+            }
             OutputFormat::Mp4 => EncodeBackend::FfmpegAv1,
         };
         Ok((job, backend))
@@ -252,4 +265,3 @@ mod tests {
         assert!(matches!(backend, EncodeBackend::StdoutRaw));
     }
 }
-
