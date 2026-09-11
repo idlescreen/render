@@ -1,5 +1,9 @@
 [workspace]
 members = ["engine", "studio"]
+# `idle/` is the sibling engine checkout (CI) or a symlink to it (local):
+# without exclude, path deps under it bind to THIS workspace root and their
+# `dep.workspace = true` fields resolve against render's dependencies.
+exclude = ["idle"]
 resolver = "2"
 
 # Default binary for `cargo run` convenience

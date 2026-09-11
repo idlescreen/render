@@ -91,19 +91,24 @@ jobs:
     needs: test
     steps:
     - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+    - name: Checkout idle engine (path deps)
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      with:
+        repository: idlescreen/idle
+        path: idle
+    - name: System deps
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libdbus-1-dev libwayland-dev libxkbcommon-dev libssl-dev pkg-config
     - name: MSRV toolchain
       run: |
-        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.75.0
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.96.0
         echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
-    - name: MSRV check (1.75.0)
-      run: |
-        # Cheap MSRV gate: ensure the workspace builds on the floor toolchain.
-        # Skip the path-dep checkout (idle/) — we only need the render
-        # workspace to resolve, and the path-dep will fail to resolve
-        # anyway without the sibling.
-        rustc --version
-        cargo --version
-        cargo build --offline --no-run 2>&1 | head -5 || true
+    - name: MSRV build (1.96.0)
+      # Real gate: the workspace must build on the pinned floor toolchain.
+      # (1.75 is impossible — idle-api is edition-2024; the previous job
+      # self-skipped with `|| true` and gated nothing.)
+      run: cargo build --workspace --all-targets
 
   docs:
     runs-on: ubuntu-latest
@@ -116,7 +121,5 @@ jobs:
         echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
     - name: README link check
       run: |
-        # Cheap doc gate: README links should resolve (anchored or
-        # external). Skip if markdown-link-check is not available.
-        which markdown-link-check || { echo "skip: markdown-link-check not installed"; exit 0; }
+        npm install -g markdown-link-check@3 >/dev/null
         markdown-link-check README.md
