@@ -9,7 +9,6 @@ repository = "https://github.com/idlescreen/render"
 readme = "../README.md"
 keywords = ["idlescreen", "screensaver", "av1", "render"]
 categories = ["command-line-utilities", "multimedia"]
-# Prefer the product name when multiple bins share main.rs.
 default-run = "render"
 
 [lib]
