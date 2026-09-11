@@ -18,11 +18,11 @@ path = "src/lib.rs"
 
 [[bin]]
 name = "render"
-path = "src/main.rs"
+path = "src/bin/render.rs"
 
 [[bin]]
 name = "idle-render"
-path = "src/main.rs"
+path = "src/bin/idle-render.rs"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
