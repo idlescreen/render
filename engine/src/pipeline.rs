@@ -22,7 +22,7 @@ pub struct PipelineResult {
     pub snapshot: SnapshotOutcome,
 }
 
-/// Export seed env vars so plugins using [`idle_api::LcgRng::from_env_or_random`] match.
+/// Export seed env vars so plugins using `idle_api::LcgRng::from_env_or_random` match.
 pub fn export_seed_env(seed: u64) {
     // SAFETY: single-threaded CLI before plugin load; values are numeric strings.
     unsafe {
