@@ -44,11 +44,11 @@ pub struct Args {
     #[arg(long)]
     pub audio: Option<PathBuf>,
 
-    /// Output path (.mkv recommended). Optional with `--dry-run` (plan only).
+    /// Output path (.mkv recommended). Optional with `--dry-run`/`--stdout-raw`.
     #[arg(
         long,
         short = 'o',
-        required_unless_present_any = ["job_file", "dry_run"]
+        required_unless_present_any = ["job_file", "dry_run", "stdout_raw"]
     )]
     pub output: Option<PathBuf>,
 
@@ -172,9 +172,12 @@ impl Args {
         let output = match self.output {
             Some(p) => p,
             None if self.dry_run => PathBuf::from("dry-run.mkv"),
+            // StdoutRaw streams to stdout; the path is unused but RenderJob
+            // requires one.
+            None if self.stdout_raw => PathBuf::from("<stdout>"),
             None => {
                 return Err(RenderError::Job(
-                    "--output required without --job-file (unless --dry-run)".into(),
+                    "--output required without --job-file (unless --dry-run/--stdout-raw)".into(),
                 ));
             }
         };

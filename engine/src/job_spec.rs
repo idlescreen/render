@@ -128,7 +128,14 @@ impl JobSpec {
         }
         let raw = serde_json::to_string_pretty(self)
             .map_err(|e| RenderError::Job(format!("serialize job: {e}")))?;
-        std::fs::write(path, raw).map_err(|source| RenderError::Io {
+        // Atomic: tmp + rename so a crash can't leave a half-written job file
+        // for `render --job-file` to choke on.
+        let tmp = path.with_extension("job.tmp");
+        std::fs::write(&tmp, raw).map_err(|source| RenderError::Io {
+            path: tmp.clone(),
+            source,
+        })?;
+        std::fs::rename(&tmp, path).map_err(|source| RenderError::Io {
             path: path.to_path_buf(),
             source,
         })

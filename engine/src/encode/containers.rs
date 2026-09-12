@@ -2,9 +2,12 @@
 
 //! Encoded output sinks: PNG sequence writer and ffmpeg pipe.
 
+use std::io::Read;
 use std::io::Write;
 use std::path::Path;
 use std::process::{Command, Stdio};
+use std::sync::mpsc;
+use std::thread;
 
 use crate::encode_select::{
     is_hardware_encoder, push_h264_quality_args, push_quality_args, EncodeSettings,
@@ -106,6 +109,26 @@ where
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| RenderError::Ffmpeg(e.to_string()))?;
+    // Drain stderr on a thread: a chatty encoder filling the pipe buffer
+    // would block ffmpeg while we block writing stdin → deadlock.
+    let (err_tx, err_rx) = mpsc::channel();
+    if let Some(mut err) = child.stderr.take() {
+        thread::spawn(move || {
+            let mut buf = Vec::new();
+            let mut chunk = [0u8; 8192];
+            while let Ok(n) = err.read(&mut chunk) {
+                if n == 0 {
+                    break;
+                }
+                buf.extend_from_slice(&chunk[..n]);
+                if buf.len() > 64 * 1024 {
+                    let keep = buf.split_off(buf.len() - 64 * 1024);
+                    buf = keep;
+                }
+            }
+            let _ = err_tx.send(buf);
+        });
+    }
     let mut stdin = child
         .stdin
         .take()
@@ -118,14 +141,17 @@ where
         n += 1;
     }
     drop(stdin);
-    let out = child
-        .wait_with_output()
+    let status = child
+        .wait()
         .map_err(|e| RenderError::Ffmpeg(e.to_string()))?;
-    if !out.status.success() {
+    let stderr = err_rx
+        .recv_timeout(std::time::Duration::from_secs(5))
+        .unwrap_or_default();
+    if !status.success() {
         return Err(RenderError::Ffmpeg(format!(
             "exit {:?} encoder={encoder}: {}",
-            out.status.code(),
-            String::from_utf8_lossy(&out.stderr)
+            status.code(),
+            String::from_utf8_lossy(&stderr)
         )));
     }
     if n == 0 {

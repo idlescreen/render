@@ -13,7 +13,10 @@ pub fn mux_audio_bed(video: &Path, audio: &Path, output: &Path) -> Result<(), Re
             audio.display()
         )));
     }
-    let tmp = output.with_extension("mux.tmp.mkv");
+    // ffmpeg picks the muxer from the extension — a hardcoded `.mkv` tmp
+    // would write Matroska bytes into a file renamed `*.mp4`.
+    let ext = output.extension().and_then(|e| e.to_str()).unwrap_or("mkv");
+    let tmp = output.with_extension(format!("mux.tmp.{ext}"));
     let out = Command::new("ffmpeg")
         .args([
             "-hide_banner",

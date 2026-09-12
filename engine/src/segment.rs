@@ -97,6 +97,14 @@ pub fn concat_segments(parts: &[PathBuf], output: &Path) -> Result<(), RenderErr
         path: list_path.clone(),
         source,
     })?;
+    // Remove the list file on every path — including a failed ffmpeg spawn.
+    struct ListGuard(PathBuf);
+    impl Drop for ListGuard {
+        fn drop(&mut self) {
+            let _ = fs::remove_file(&self.0);
+        }
+    }
+    let _guard = ListGuard(list_path);
     let out = Command::new("ffmpeg")
         .args([
             "-hide_banner",
@@ -109,12 +117,11 @@ pub fn concat_segments(parts: &[PathBuf], output: &Path) -> Result<(), RenderErr
             "0",
             "-i",
         ])
-        .arg(&list_path)
+        .arg(&_guard.0)
         .args(["-c", "copy"])
         .arg(output)
         .output()
         .map_err(|e| RenderError::Ffmpeg(e.to_string()))?;
-    let _ = fs::remove_file(&list_path);
     if !out.status.success() {
         let err = String::from_utf8_lossy(&out.stderr);
         return Err(RenderError::Ffmpeg(format!("concat failed: {err}")));

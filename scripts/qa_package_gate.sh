@@ -20,10 +20,11 @@ if [[ ! -e idle ]]; then
 fi
 
 echo "=========================================="
-echo "Render + Studio package gate"
+echo "Render package gate"
 echo "=========================================="
-echo ">>> cargo test -p render -p idle-studio"
-cargo test -p render -p idle-studio --quiet
+# Studio moved to idlescreen/idle-studio — it gates itself in its own repo.
+echo ">>> cargo test -p render"
+cargo test -p render --quiet
 echo ">>> dry-run render (plan only)"
 cargo build --release -p render -q
 ./target/release/render -e beams --duration 1s --dry-run

@@ -15,4 +15,4 @@ png = "0.17"
 
 [workspace.package]
 authors = ["idlescreen developers"]
-repository = "https://github.com/idlescreen/idlescreen"
+repository = "https://github.com/idlescreen/render"
