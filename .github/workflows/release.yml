@@ -79,7 +79,12 @@ jobs:
 
       - name: Sign packages with Cosign
         run: |
-          for file in target/debian/*.deb target/generate-rpm/*.rpm; do
+          # cargo-deb writes to the workspace target/; generate-rpm writes
+          # to the member's own engine/target/.
+          shopt -s nullglob
+          for file in target/debian/*.deb \
+                      target/generate-rpm/*.rpm \
+                      engine/target/generate-rpm/*.rpm; do
             cosign sign-blob --yes --output-signature "${file}.sig" --output-certificate "${file}.pem" "$file"
           done
 
@@ -87,6 +92,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          shopt -s nullglob
           gh release create "${{ inputs.tag || github.ref_name }}" \
             --title "${{ inputs.tag || github.ref_name }}" \
             --notes "Release ${{ inputs.tag || github.ref_name }}" \
@@ -95,7 +101,10 @@ jobs:
             target/debian/*.pem \
             target/generate-rpm/*.rpm \
             target/generate-rpm/*.sig \
-            target/generate-rpm/*.pem
+            target/generate-rpm/*.pem \
+            engine/target/generate-rpm/*.rpm \
+            engine/target/generate-rpm/*.sig \
+            engine/target/generate-rpm/*.pem
 
       - name: Trigger Packages Repository Update
         env:
