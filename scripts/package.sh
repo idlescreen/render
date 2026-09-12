@@ -27,7 +27,7 @@ if [[ -d "$POOL_RPM" ]]; then
   ls -la "$POOL_RPM"/*.rpm 2>/dev/null | tail -10
 fi
 if [[ -d "$POOL_DEB" ]]; then
-  find target engine/target studio/target debian -name '*.deb' 2>/dev/null \
+  find target engine/target studio/target -name '*.deb' 2>/dev/null \
     | while read -r f; do cp -f "$f" "$POOL_DEB/"; done || true
   echo "    DEB → $POOL_DEB"
 fi
