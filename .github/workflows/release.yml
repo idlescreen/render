@@ -64,12 +64,48 @@ jobs:
         run: cargo binstall -y cargo-deb cargo-generate-rpm
 
       - name: Build release binaries
-        run: cargo build --release -p render
+        run: cargo build --release -p render -p idle-studio
+
+      - name: Determine which packages to publish
+        id: plan
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # The packages pool is the source of truth for "already
+          # distributed". Rebuilding an unchanged version produces
+          # byte-different files that trip the importer's no-clobber
+          # guard — skip anything whose exact filenames already exist.
+          in_pool() {
+            gh api "repos/idlescreen/packages/contents/rpm/pool/$1" \
+              --jq .name >/dev/null 2>&1 || \
+            gh api "repos/idlescreen/packages/contents/apt/pool/main/$2" \
+              --jq .name >/dev/null 2>&1
+          }
+          ver() { grep -m1 '^version' "$1/Cargo.toml" | cut -d'"' -f2; }
+          engine_v=$(ver engine)
+          studio_v=$(ver studio)
+          if in_pool "render-${engine_v}-1.x86_64.rpm" "render_${engine_v}-1_amd64.deb"; then
+            echo "engine=skip" >> "$GITHUB_OUTPUT"
+          else
+            echo "engine=build" >> "$GITHUB_OUTPUT"
+          fi
+          if in_pool "idle-studio-${studio_v}-1.x86_64.rpm" "idle-studio_${studio_v}-1_amd64.deb"; then
+            echo "studio=skip" >> "$GITHUB_OUTPUT"
+          else
+            echo "studio=build" >> "$GITHUB_OUTPUT"
+          fi
+          cat "$GITHUB_OUTPUT"
 
       - name: Package crates
         run: |
-          (cd engine && cargo deb --no-build)
-          (cd engine && cargo generate-rpm)
+          if [ "${{ steps.plan.outputs.engine }}" = "build" ]; then
+            (cd engine && cargo deb --no-build)
+            (cd engine && cargo generate-rpm)
+          fi
+          if [ "${{ steps.plan.outputs.studio }}" = "build" ]; then
+            (cd studio && cargo deb --no-build)
+            (cd studio && cargo generate-rpm)
+          fi
 
       - name: Install Cosign
         run: |
@@ -84,7 +120,8 @@ jobs:
           shopt -s nullglob
           for file in target/debian/*.deb \
                       target/generate-rpm/*.rpm \
-                      engine/target/generate-rpm/*.rpm; do
+                      engine/target/generate-rpm/*.rpm \
+                      studio/target/generate-rpm/*.rpm; do
             cosign sign-blob --yes --output-signature "${file}.sig" --output-certificate "${file}.pem" "$file"
           done
 
@@ -104,7 +141,10 @@ jobs:
             target/generate-rpm/*.pem \
             engine/target/generate-rpm/*.rpm \
             engine/target/generate-rpm/*.sig \
-            engine/target/generate-rpm/*.pem
+            engine/target/generate-rpm/*.pem \
+            studio/target/generate-rpm/*.rpm \
+            studio/target/generate-rpm/*.sig \
+            studio/target/generate-rpm/*.pem
 
       - name: Trigger Packages Repository Update
         env:

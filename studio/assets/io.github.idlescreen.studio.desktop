@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=IdleScreen Studio
+GenericName=Offline Render Queue & Director
+Comment=Director UI for IdleScreen offline video rendering
+Exec=idle-studio tui
+Icon=video-x-generic
+Terminal=true
+Type=Application
+Categories=Utility;Video;AudioVideo;
+Keywords=screensaver;render;studio;idle;video;export;

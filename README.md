@@ -3,7 +3,7 @@
 Offline export capability for [IdleScreen](https://github.com/idlescreen/idle)
 — runs a saver plugin's simulation headless and encodes the frames to video
 (AV1 default, H.264 for `--container mp4`), PNG sequences, or raw BGRA.
-[`idle-studio`](https://github.com/idlescreen/idle-studio) is the TUI that
+[`idle-studio`](studio/) is the TUI that
 drives this via `--job-file`; `render` is the engine underneath it.
 
 ## Usage
@@ -45,8 +45,9 @@ name resolves through idle-runner's signed-manifest discovery.
 
 ## Layout
 
-`engine/` is the workspace member (lib `idle_render` + `render`/`idle-render`
-bins). The build needs a sibling `idle` checkout — `./idle` is a symlink or
+`engine/` is the render engine (lib `idle_render` + `render`/`idle-render`
+bins). `studio/` is the Director TUI (`idle-studio` — see `studio/README.md`).
+The build needs a sibling `idle` checkout — `./idle` is a symlink or
 real checkout of `idlescreen/idle` (provides `idle-runner`, `idle-api`, the
 wayland/dbus crates). CI creates it automatically; locally,
 `scripts/package.sh` symlinks `../idle` when present.
