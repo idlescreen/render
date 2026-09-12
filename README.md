@@ -53,5 +53,3 @@ wayland/dbus crates). CI creates it automatically; locally,
 
 Packaging: signed RPM/DEB via release workflow; `scripts/package.sh` runs the
 local gate (`qa_package_gate.sh`) then builds both into the packages pool.
-The `Dockerfile` + `unraid/render.xml` are placeholders — no container image
-is published yet.
