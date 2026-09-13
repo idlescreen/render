@@ -10,11 +10,11 @@ if [[ "${SKIP_TESTS:-}" == "1" || "${SKIP_TESTS:-}" == "true" ]]; then
   exit 0
 fi
 
-if [[ ! -e idle ]]; then
-  if [[ -d ../idle ]]; then
-    ln -sfn ../idle idle
+if [[ ! -e runtime ]]; then
+  if [[ -d ../runtime ]]; then
+    ln -sfn ../runtime runtime
   else
-    echo "FAIL: need sibling ../idle or ./idle symlink" >&2
+    echo "FAIL: need sibling ../runtime or ./runtime symlink" >&2
     exit 1
   fi
 fi
