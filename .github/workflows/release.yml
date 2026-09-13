@@ -31,7 +31,7 @@ jobs:
         with:
           ref: ${{ inputs.tag || github.ref_name }}
 
-      - name: Checkout idle engine (path deps)
+      - name: Checkout runtime engine (path deps)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: idlescreen/runtime
@@ -83,7 +83,7 @@ jobs:
           }
           ver() { grep -m1 '^version' "$1/Cargo.toml" | cut -d'"' -f2; }
           engine_v=$(ver engine)
-          studio_v=$(ver studio)
+          studio_v=$(ver .)
           if in_pool "render-${engine_v}-1.x86_64.rpm" "render_${engine_v}-1_amd64.deb"; then
             echo "engine=skip" >> "$GITHUB_OUTPUT"
           else
@@ -103,8 +103,8 @@ jobs:
             (cd engine && cargo generate-rpm)
           fi
           if [ "${{ steps.plan.outputs.studio }}" = "build" ]; then
-            (cd studio && cargo deb --no-build)
-            (cd studio && cargo generate-rpm)
+            cargo deb --no-build
+            cargo generate-rpm
           fi
 
       - name: Install Cosign
@@ -121,7 +121,6 @@ jobs:
           for file in target/debian/*.deb \
                       target/generate-rpm/*.rpm \
                       engine/target/generate-rpm/*.rpm \
-                      studio/target/generate-rpm/*.rpm; do
             cosign sign-blob --yes --output-signature "${file}.sig" --output-certificate "${file}.pem" "$file"
           done
 
@@ -142,9 +141,6 @@ jobs:
             engine/target/generate-rpm/*.rpm \
             engine/target/generate-rpm/*.sig \
             engine/target/generate-rpm/*.pem \
-            studio/target/generate-rpm/*.rpm \
-            studio/target/generate-rpm/*.sig \
-            studio/target/generate-rpm/*.pem
 
       - name: Trigger Packages Repository Update
         env:

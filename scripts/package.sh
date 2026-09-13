@@ -10,7 +10,7 @@ cd "$ROOT"
 echo ">>> release build"
 cargo build --release -p render -p idle-studio
 
-for member in engine studio; do
+for member in . engine; do
   echo ">>> generate RPM ($member)"
   (cd "$member" && cargo generate-rpm)
   echo ">>> generate DEB ($member)"

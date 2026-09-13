@@ -21,7 +21,7 @@ jobs:
         rustup component add rustfmt
     - name: file length cap (256 lines)
       run: |
-        over=$(find . -name '*.rs' -not -path './target/*' -not -path './idle/*' | xargs wc -l | awk '$1 > 256 && $2 != "total" {print}')
+        over=$(find . -name '*.rs' -not -path './target/*' -not -path './runtime/*' | xargs wc -l | awk '$1 > 256 && $2 != "total" {print}')
         [ -z "$over" ] || { echo "Files over 256 lines:"; echo "$over"; exit 1; }
     - name: fmt check
       run: cargo fmt --all -- --check
@@ -31,7 +31,7 @@ jobs:
     needs: fmt
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-    - name: Checkout idle engine (path deps)
+    - name: Checkout runtime engine (path deps)
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
         repository: idlescreen/runtime
@@ -53,7 +53,7 @@ jobs:
     needs: clippy
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-    - name: Checkout idle engine (path deps)
+    - name: Checkout runtime engine (path deps)
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
         repository: idlescreen/runtime
@@ -74,7 +74,7 @@ jobs:
     needs: test
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-    - name: Checkout idle engine (path deps)
+    - name: Checkout runtime engine (path deps)
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
         repository: idlescreen/runtime
@@ -95,7 +95,7 @@ jobs:
     needs: test
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-    - name: Checkout idle engine (path deps)
+    - name: Checkout runtime engine (path deps)
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
         repository: idlescreen/runtime
