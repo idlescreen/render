@@ -15,16 +15,9 @@ idlescreen install studio
 ## Commands
 
 ```sh
-idlescreen studio          # the Director TUI (binary: idle-studio)
-idle-studio enqueue --effect hearth --output out.mkv --duration 30s
-idle-studio run --all      # drain the queue
-```
-
-```sh
-render -e beams --duration 30s -o out.mkv     # AV1 in Matroska
+idlescreen studio                             # Director TUI: queue + tune jobs
+render -e beams --duration 30s -o out.mkv     # headless render → AV1/Matroska
 render -e ripple --format png -o frames/      # one PNG per frame
-render -e beams --stdout-raw | consumer       # raw BGRA + GBRI header
-render -e beams --duration 1s --dry-run       # plan only, no encode
 ```
 
 ## License
